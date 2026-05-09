@@ -56,6 +56,7 @@ def clean_text(text):
 def load_data():
 
     df = pd.read_csv("customer_support_tickets_200k.zip", compression='zip')
+
     df.columns = df.columns.str.strip().str.lower()
 
     df = df.rename(columns={
@@ -79,15 +80,15 @@ def load_data():
     df['category_enc'] = le_c.fit_transform(df['category'])
 
     return df, le_p, le_c
+
 # -------------------- TRAIN MODELS --------------------
 
 @st.cache_resource
 def train(df):
 
-    # ✅ CHANGE 2: Tuned TF-IDF — more features, sublinear_tf, min_df, bigrams only
     tfidf = TfidfVectorizer(
         max_features=30000,
-        ngram_range=(1,2),
+        ngram_range=(1, 2),
         stop_words='english',
         sublinear_tf=True,
         min_df=2
@@ -95,6 +96,7 @@ def train(df):
 
     X = tfidf.fit_transform(df['cleaned'])
 
+    # BUG 2 FIX: Split BEFORE fitting model_p so test rows are never seen during training
     X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
         X,
         df['priority_enc'],
@@ -102,7 +104,6 @@ def train(df):
         random_state=42
     )
 
-    # ✅ CHANGE 3: Tuned LogisticRegression with C=5 and lbfgs solver
     model_p = LogisticRegression(
         max_iter=3000,
         class_weight='balanced',
@@ -116,8 +117,8 @@ def train(df):
 
     model_t = LinearRegression()
 
-    # ✅ CHANGE 4: Train priority model on full data for better weights
-    model_p.fit(X, df['priority_enc'])
+    # BUG 2 FIX: Train only on X_train_p (not full X) so accuracy is honest
+    model_p.fit(X_train_p, y_train_p)
 
     model_c.fit(X, df['category_enc'])
 
@@ -129,11 +130,13 @@ def train(df):
 
     cm = confusion_matrix(y_test_p, pred_p)
 
+    # BUG 1 FIX: Return tfidf and X so predict_subject() can use them without globals
     return tfidf, X, model_p, model_c, model_t, accuracy, cm
 
 # -------------------- SUBJECT PREDICTION --------------------
 
-def predict_subject(user_text):
+# BUG 1 FIX: Accept tfidf, X, df as parameters instead of relying on global scope
+def predict_subject(user_text, tfidf, X, df):
 
     user_vector = tfidf.transform(
         [clean_text(user_text)]
@@ -181,7 +184,8 @@ if text.strip():
         [mc.predict(x)[0]]
     )[0]
 
-    s = predict_subject(text)
+    # BUG 1 FIX: Pass tfidf, X, df explicitly into predict_subject()
+    s = predict_subject(text, tfidf, X, df)
 
     t = mt.predict(x)[0]
 
@@ -206,14 +210,15 @@ if text.strip():
 
     st.info(c)
 
-    st.markdown("### 📝 Ticket Subject")
+    # BUG 3 FIX: Label corrected from "Ticket Subject" to "Product" to match CSV data
+    st.markdown("### 📝 Product")
 
     st.success(s)
 
     st.markdown("### ⏱️ Estimated Resolution Time")
 
     st.write(
-        f"**{round(float(t),2)} hours**"
+        f"**{round(float(t), 2)} hours**"
     )
 
 else:
