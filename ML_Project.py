@@ -67,16 +67,42 @@ def load_data():
 
     df.columns = df.columns.str.strip().str.lower()
 
+    # Rename Columns
+
     df = df.rename(columns={
         'ticket_description': 'text',
+        'ticket_subject': 'subject',
         'issue_category': 'category',
         'priority_level': 'priority',
         'resolution_time_hours': 'resolution_time'
     })
 
+    # Required Columns
+
     df = df[
-        ['text', 'category', 'priority', 'resolution_time']
+        [
+            'text',
+            'subject',
+            'category',
+            'priority',
+            'resolution_time'
+        ]
     ].dropna()
+
+    # Keep only top 15 frequent subjects
+
+    top_subjects = (
+        df['subject']
+        .value_counts()
+        .nlargest(15)
+        .index
+    )
+
+    df = df[
+        df['subject'].isin(top_subjects)
+    ]
+
+    # Clean Text
 
     df['cleaned'] = df['text'].apply(clean_text)
 
@@ -86,11 +112,21 @@ def load_data():
 
     le_c = LabelEncoder()
 
-    df['priority_enc'] = le_p.fit_transform(df['priority'])
+    le_s = LabelEncoder()
 
-    df['category_enc'] = le_c.fit_transform(df['category'])
+    df['priority_enc'] = le_p.fit_transform(
+        df['priority']
+    )
 
-    return df, le_p, le_c
+    df['category_enc'] = le_c.fit_transform(
+        df['category']
+    )
+
+    df['subject_enc'] = le_s.fit_transform(
+        df['subject']
+    )
+
+    return df, le_p, le_c, le_s
 
 # -------------------------
 # Train Models
@@ -123,9 +159,15 @@ def train(df):
 
     pred_p = model_p.predict(X_test_p)
 
-    accuracy = accuracy_score(y_test_p, pred_p)
+    accuracy = accuracy_score(
+        y_test_p,
+        pred_p
+    )
 
-    cm = confusion_matrix(y_test_p, pred_p)
+    cm = confusion_matrix(
+        y_test_p,
+        pred_p
+    )
 
     # -------------------------
     # Category Model
@@ -143,6 +185,21 @@ def train(df):
     model_c.fit(X_train_c, y_train_c)
 
     # -------------------------
+    # Subject Model
+    # -------------------------
+
+    X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
+        X,
+        df['subject_enc'],
+        test_size=0.3,
+        random_state=42
+    )
+
+    model_s = LogisticRegression(max_iter=2000)
+
+    model_s.fit(X_train_s, y_train_s)
+
+    # -------------------------
     # Resolution Time Model
     # -------------------------
 
@@ -157,10 +214,18 @@ def train(df):
 
     model_t.fit(X_train_t, y_train_t)
 
-    return tfidf, model_p, model_c, model_t, accuracy, cm
+    return (
+        tfidf,
+        model_p,
+        model_c,
+        model_s,
+        model_t,
+        accuracy,
+        cm
+    )
 
 # -------------------------
-# UI
+# Streamlit UI
 # -------------------------
 
 st.set_page_config(
@@ -170,17 +235,37 @@ st.set_page_config(
 
 st.title("🎯 Smart Ticket Classifier")
 
-df, le_p, le_c = load_data()
+# Load Data
 
-tfidf, mp, mc, mt, accuracy, cm = train(df)
+df, le_p, le_c, le_s = load_data()
+
+# Train Models
+
+(
+    tfidf,
+    mp,
+    mc,
+    ms,
+    mt,
+    accuracy,
+    cm
+) = train(df)
+
+# User Input
 
 text = st.text_area(
     "✍️ Enter Customer Complaint"
 )
 
+# -------------------------
+# Prediction
+# -------------------------
+
 if text.strip():
 
-    x = tfidf.transform([clean_text(text)])
+    x = tfidf.transform(
+        [clean_text(text)]
+    )
 
     # Predictions
 
@@ -192,14 +277,20 @@ if text.strip():
         [mc.predict(x)[0]]
     )[0]
 
+    s = le_s.inverse_transform(
+        [ms.predict(x)[0]]
+    )[0]
+
     t = mt.predict(x)[0]
 
+    # -------------------------
     # UI Output
+    # -------------------------
 
     st.subheader("📊 Model Performance")
 
     st.write(
-        "Accuracy:",
+        "Priority Accuracy:",
         round(accuracy, 2)
     )
 
@@ -215,9 +306,15 @@ if text.strip():
 
     st.info(c)
 
+    st.markdown("### 📝 Ticket Subject")
+
+    st.success(s)
+
     st.markdown("### ⏱️ Estimated Resolution Time")
 
-    st.write(f"**{round(t, 2)} hours**")
+    st.write(
+        f"**{round(t, 2)} hours**"
+    )
 
 else:
 
