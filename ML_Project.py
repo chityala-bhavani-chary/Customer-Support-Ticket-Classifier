@@ -48,6 +48,19 @@ def clean_text(text):                                   # ------------> to defin
 def load_data():                                        # ------------> to define a function called load_data that loads the dataset, cleans column names, performs text preprocessing, and encodes categorical labels
     df = pd.read_csv("customer_support_tickets.csv")
     df.columns = df.columns.str.strip().str.lower()
+    df = df[['text', 'subject', 'category', 'priority', 'resolution_time']].dropna()
+    # Keep only Top 10 most frequent subjects
+
+    top_subjects = (
+        df['subject']
+        .value_counts()
+        .nlargest(10)
+        .index
+    )
+    
+    df = df[
+        df['subject'].isin(top_subjects)
+    ]
 
     # Map columns
     df = df.rename(columns={
@@ -80,12 +93,26 @@ def train(df):          # ------------> to define a function called train that v
     tfidf = TfidfVectorizer(max_features=3000, ngram_range=(1,2))       # ------------> to create a TF-IDF vectorizer considering unigrams and bigrams to capture more context from the support tickets
     X = tfidf.fit_transform(df['cleaned'])
 
-    X_train, X_test, y_train_p, y_test_p = train_test_split(X, df['priority_enc'], test_size=0.2, random_state=42)            # ------------> to split the data for validation, using 20% for testing
+    X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
+    X,
+    df['subject_enc'],
+    test_size=0.2,
+    random_state=42
+    )
+    
+    model_s = LogisticRegression(
+        class_weight='balanced',
+        max_iter=2000
+    )
+    
+    model_s.fit(
+        X_train_s,
+        y_train_s
+    )            # ------------> to split the data for validation, using 20% for testing
 
     # Fixed: Removed multi_class argument to resolve TypeError in scikit-learn 1.8.0
     model_p = LogisticRegression(solver='lbfgs', class_weight='balanced', max_iter=1000).fit(X_train, y_train_p) 
     model_c = LogisticRegression(class_weight='balanced', max_iter=1000).fit(X, df['category_enc'])
-    model_s = LogisticRegression(class_weight='balanced', max_iter=1000).fit(X, df['subject_enc'])
     model_t = LinearRegression().fit(X, df['resolution_time'])                      
 
     # Evaluation Metrics
