@@ -13,326 +13,130 @@
 # -------------------------
 # IMPORTS
 # -------------------------
-
 import pandas as pd
 import streamlit as st
 import re
+import nltk
 
+from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 
-# -------------------------
-# CLEAN TEXT
-# -------------------------
-
-from nltk.corpus import stopwords
-import nltk
-
 try:
     nltk.data.find('corpora/stopwords')
-
 except:
     nltk.download('stopwords')
 
 STOPWORDS = set(stopwords.words('english'))
 
 def clean_text(text):
-
     text = str(text).lower()
-
     text = re.sub(r'[^a-zA-Z ]', '', text)
-
-    words = text.split()
-
-    words = [
-        w for w in words
-        if w not in STOPWORDS and len(w) > 2
-    ]
-
+    words = [w for w in text.split() if w not in STOPWORDS and len(w) > 2]
     return " ".join(words)
-
-# -------------------------
-# LOAD DATA
-# -------------------------
 
 @st.cache_data
 def load_data():
 
-    df = pd.read_csv(
-        "customer_support_tickets.csv"
-    )
+    df = pd.read_csv("customer_support_tickets.csv")
 
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.lower()
-    )
-
-    # Map columns
+    df.columns = df.columns.str.strip().str.lower()
 
     df = df.rename(columns={
-
-        'ticket_description': 'text',
-
-        'ticket_subject': 'subject',
-
-        'issue_category': 'category',
-
-        'priority_level': 'priority',
-
-        'resolution_time_hours': 'resolution_time'
+        'ticket_description':'text',
+        'ticket_subject':'subject',
+        'issue_category':'category',
+        'priority_level':'priority',
+        'resolution_time_hours':'resolution_time'
     })
 
-    # Keep required columns
+    df = df[['text','subject','category','priority','resolution_time']].dropna()
 
-    df = df[
-        [
-            'text',
-            'subject',
-            'category',
-            'priority',
-            'resolution_time'
-        ]
-    ].dropna()
+    top_subjects = df['subject'].value_counts().nlargest(10).index
 
-    # 🔥 Keep only Top 10 Subjects
+    df = df[df['subject'].isin(top_subjects)]
 
-    top_subjects = (
-        df['subject']
-        .value_counts()
-        .nlargest(15)
-        .index
-    )
+    df['cleaned'] = df['text'].apply(clean_text)
 
-    df = df[
-        df['subject'].isin(top_subjects)
-    ]
+    le_p, le_c, le_s = LabelEncoder(), LabelEncoder(), LabelEncoder()
 
-    # Clean text
-
-    df['cleaned'] = df['text'].apply(
-        clean_text
-    )
-
-    # Encode
-
-    le_p = LabelEncoder()
-
-    le_c = LabelEncoder()
-
-    le_s = LabelEncoder()
-
-    df['priority_enc'] = le_p.fit_transform(
-        df['priority']
-    )
-
-    df['category_enc'] = le_c.fit_transform(
-        df['category']
-    )
-
-    df['subject_enc'] = le_s.fit_transform(
-        df['subject']
-    )
+    df['priority_enc'] = le_p.fit_transform(df['priority'])
+    df['category_enc'] = le_c.fit_transform(df['category'])
+    df['subject_enc'] = le_s.fit_transform(df['subject'])
 
     return df, le_p, le_c, le_s
-
-# -------------------------
-# TRAIN MODELS
-# -------------------------
 
 @st.cache_resource
 def train(df):
 
-    tfidf = TfidfVectorizer(
-        max_features=3000,
-        ngram_range=(1,2)
-    )
+    tfidf = TfidfVectorizer(max_features=3000, ngram_range=(1,2))
 
-    X = tfidf.fit_transform(
-        df['cleaned']
-    )
-
-    # Priority Train-Test
+    X = tfidf.fit_transform(df['cleaned'])
 
     X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
-        X,
-        df['priority_enc'],
-        test_size=0.2,
-        random_state=42
+        X, df['priority_enc'], test_size=0.2, random_state=42
     )
-
-    # Subject Train-Test
 
     X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
-        X,
-        df['subject_enc'],
-        test_size=0.2,
-        random_state=42
+        X, df['subject_enc'], test_size=0.2, random_state=42
     )
 
-    # Models
-
-    model_p = LogisticRegression(
-        max_iter=3000
-    )
-
-    model_p.fit(
-        X_train_p,
-        y_train_p
-    )
-
-    model_c = LogisticRegression(
-        max_iter=3000
-    )
-
-    model_c.fit(
-        X,
-        df['category_enc']
-    )
-
-    model_s = LogisticRegression(
-        max_iter=3000
-    )
-
-    model_s.fit(
-        X_train_s,
-        y_train_s
-    )
-
+    model_p = LogisticRegression(max_iter=3000)
+    model_c = LogisticRegression(max_iter=3000)
+    model_s = LogisticRegression(max_iter=3000)
     model_t = LinearRegression()
 
-    model_t.fit(
-        X,
-        df['resolution_time']
-    )
+    model_p.fit(X_train_p, y_train_p)
+    model_c.fit(X, df['category_enc'])
+    model_s.fit(X_train_s, y_train_s)
+    model_t.fit(X, df['resolution_time'])
 
-    # Accuracy
+    pred_p = model_p.predict(X_test_p)
 
-    pred_p = model_p.predict(
-        X_test_p
-    )
+    accuracy = accuracy_score(y_test_p, pred_p)
 
-    accuracy = accuracy_score(
-        y_test_p,
-        pred_p
-    )
+    cm = confusion_matrix(y_test_p, pred_p)
 
-    cm = confusion_matrix(
-        y_test_p,
-        pred_p
-    )
+    return tfidf, model_p, model_c, model_s, model_t, accuracy, cm
 
-    return (
-        tfidf,
-        model_p,
-        model_c,
-        model_s,
-        model_t,
-        accuracy,
-        cm
-    )
-
-# -------------------------
-# UI
-# -------------------------
-
-st.set_page_config(
-    page_title="Ticket AI",
-    layout="centered"
-)
+st.set_page_config(page_title="Ticket AI", layout="centered")
 
 st.title("🎯 Smart Ticket Generator")
 
 df, le_p, le_c, le_s = load_data()
 
-(
-    tfidf,
-    mp,
-    mc,
-    ms,
-    mt,
-    accuracy,
-    cm
-) = train(df)
+tfidf, mp, mc, ms, mt, accuracy, cm = train(df)
 
-text = st.text_area(
-    "✍️ Enter Customer Complaint"
-)
-
-# -------------------------
-# PREDICTIONS
-# -------------------------
+text = st.text_area("✍️ Enter Customer Complaint")
 
 if text.strip():
 
-    x = tfidf.transform(
-        [clean_text(text)]
-    )
+    x = tfidf.transform([clean_text(text)])
 
-    # Predictions
-
-    p = le_p.inverse_transform(
-        [mp.predict(x)[0]]
-    )[0]
-
-    c = le_c.inverse_transform(
-        [mc.predict(x)[0]]
-    )[0]
-
-    s = le_s.inverse_transform(
-        [ms.predict(x)[0]]
-    )[0]
-
+    p = le_p.inverse_transform([mp.predict(x)[0]])[0]
+    c = le_c.inverse_transform([mc.predict(x)[0]])[0]
+    s = le_s.inverse_transform([ms.predict(x)[0]])[0]
     t = mt.predict(x)[0]
 
-    # -------------------------
-    # UI OUTPUT
-    # -------------------------
-
     st.subheader("Model Performance")
-
-    st.write(
-        "Accuracy:",
-        round(accuracy, 2)
-    )
-
+    st.write("Accuracy:", round(accuracy,2))
     st.write("Confusion Matrix")
-
     st.write(cm)
 
-    st.markdown(
-        "## 🚨 Priority Level"
-    )
+    st.markdown("## 🚨 Priority Level")
+    st.error(p.upper())
 
-    st.error(
-        p.upper()
-    )
-
-    st.markdown(
-        "### 🏷️ Issue Category"
-    )
-
+    st.markdown("### 🏷️ Issue Category")
     st.info(c)
 
-    st.markdown(
-        "### 📝 Ticket Subject"
-    )
-
+    st.markdown("### 📝 Ticket Subject")
     st.success(s)
 
-    st.markdown(
-        "### ⏱️ Estimated Resolution Time"
-    )
-
-    st.write(
-        f"**{round(float(t),2)} hours**"
-    )
+    st.markdown("### ⏱️ Estimated Resolution Time")
+    st.write(f"**{round(float(t),2)} hours**")
 
 else:
-
-    st.info(
-        "Enter complaint to generate ticket"
-    )
+    st.info("Enter complaint to generate ticket")
