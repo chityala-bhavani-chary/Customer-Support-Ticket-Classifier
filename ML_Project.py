@@ -85,7 +85,15 @@ def train(df):          # ------------> to define a function called train that t
 
     model_p = LogisticRegression(max_iter=2000)
     model_p.fit(X_train, y_train_p)                                                  # ------------> to create an instance of the LogisticRegression class for priority classification, fit the model to the entire dataset (X and df['priority_enc']), and store the trained model in the variable model_p
-    model_c = LogisticRegression(max_iter=2000).fit(X, df['category_enc'])          # ------------> to create an instance of the LogisticRegression class for category classification, fit the model to the entire dataset (X and df['category_enc']), and store the trained model in the variable model_c
+    X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(
+    X,
+    df['category_enc'],
+    test_size=0.3,
+    random_state=42)
+
+    model_c = LogisticRegression(max_iter=2000)
+
+    model_c.fit(X_train_c, y_train_c)          # ------------> to create an instance of the LogisticRegression class for category classification, fit the model to the entire dataset (X and df['category_enc']), and store the trained model in the variable model_c
     model_t = LinearRegression().fit(X, df['resolution_time'])                      # ------------> to create an instance of the LinearRegression class for resolution time prediction, fit the model to the entire dataset (X and df['resolution_time']), and store the trained model in the variable model_t
     pred = model_p.predict(X_test)
     accuracy = accuracy_score(y_test_p, pred)                                       # ------------> to calculate the accuracy of the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the accuracy score in the variable accuracy
@@ -99,7 +107,7 @@ st.set_page_config(page_title="Ticket AI", layout="centered")
 st.title("🎯 Smart Ticket Generator")
 
 df, le_p, le_c = load_data()
-tfidf, mp, mc, ms, mt, accuracy, cm = train(df)
+tfidf, mp, mc, mt, accuracy, cm = train(df)
 
 text = st.text_area("✍️ Enter Customer Complaint")
 
