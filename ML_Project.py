@@ -55,25 +55,21 @@ def clean_text(text):
 @st.cache_data
 def load_data():
 
-    df = pd.read_csv(
-    "customer_support_tickets.zip",
-    compression='zip')
-
+    df = pd.read_csv("customer_support_tickets_200k.zip", compression='zip')
     df.columns = df.columns.str.strip().str.lower()
 
     df = df.rename(columns={
-        'ticket_description':'text',
-        'ticket_subject':'subject',
-        'issue_category':'category',
-        'priority_level':'priority',
-        'resolution_time_hours':'resolution_time'
+        'issue_description'    : 'text',
+        'product'              : 'subject',
+        'category'             : 'category',
+        'priority'             : 'priority',
+        'resolution_time_hours': 'resolution_time'
     })
 
     df = df[
-        ['text','subject','category','priority','resolution_time']
+        ['text', 'subject', 'category', 'priority', 'resolution_time']
     ].dropna()
 
-    # ✅ CHANGE 1: Combine subject + text for richer features
     df['cleaned'] = (df['subject'] + ' ' + df['text']).apply(clean_text)
 
     le_p = LabelEncoder()
@@ -83,7 +79,6 @@ def load_data():
     df['category_enc'] = le_c.fit_transform(df['category'])
 
     return df, le_p, le_c
-
 # -------------------- TRAIN MODELS --------------------
 
 @st.cache_resource
