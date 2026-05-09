@@ -24,6 +24,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
+from sklearn.metrics.pairwise import cosine_similarity
 
 try:
     nltk.data.find('corpora/stopwords')
@@ -110,13 +111,28 @@ tfidf, mp, mc, ms, mt, accuracy, cm = train(df)
 
 text = st.text_area("✍️ Enter Customer Complaint")
 
+def predict_subject(user_text):
+
+    user_vector = tfidf.transform(
+        [clean_text(user_text)]
+    )
+
+    similarity = cosine_similarity(
+        user_vector,
+        X
+    )
+
+    index = similarity.argmax()
+
+    return df.iloc[index]['subject']
+
 if text.strip():
 
     x = tfidf.transform([clean_text(text)])
 
     p = le_p.inverse_transform([mp.predict(x)[0]])[0]
     c = le_c.inverse_transform([mc.predict(x)[0]])[0]
-    s = le_s.inverse_transform([ms.predict(x)[0]])[0]
+    s = predict_subject(text)
     t = mt.predict(x)[0]
 
     st.subheader("Model Performance")
