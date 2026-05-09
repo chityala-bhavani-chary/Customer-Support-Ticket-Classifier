@@ -55,7 +55,9 @@ def clean_text(text):
 @st.cache_data
 def load_data():
 
-    df = pd.read_csv("customer_support_tickets.csv")
+    df = pd.read_csv(
+    "customer_support_tickets.zip",
+    compression='zip')
 
     df.columns = df.columns.str.strip().str.lower()
 
