@@ -35,7 +35,7 @@ STOPWORDS = set(stopwords.words('english'))
 
 def clean_text(text):
     text = str(text).lower()
-    text = re.sub(r'[^a-zA-Z ]', '', text)
+    text = re.sub(r'[^a-zA-Z0-9 ]', ' ', text)
     words = [w for w in text.split() if w not in STOPWORDS and len(w) > 2]
     return " ".join(words)
 
@@ -68,8 +68,11 @@ def load_data():
 @st.cache_resource
 def train(df):
 
-    tfidf = TfidfVectorizer(max_features=3000, ngram_range=(1,2))
-
+    tfidf = TfidfVectorizer(
+    max_features=10000,
+    ngram_range=(1,2),
+    stop_words='english')
+    
     X = tfidf.fit_transform(df['cleaned'])
 
     X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
@@ -79,7 +82,7 @@ def train(df):
         random_state=42
     )
 
-    model_p = LogisticRegression(max_iter=3000)
+    model_p = LogisticRegression(max_iter=3000,class_weight='balanced')
     model_c = LogisticRegression(max_iter=3000)
     model_t = LinearRegression()
 
