@@ -78,33 +78,99 @@ def load_data():                                        # ------------> to defin
 # -------------------------
 # TRAIN MODELS
 # -------------------------
+
 @st.cache_resource
-def train(df):          # ------------> to define a function called train that takes the preprocessed dataset as input, trains machine learning models for priority classification, category classification, subject classification, and resolution time prediction, and returns the trained models along with the accuracy and confusion matrix for the priority classification model
-    tfidf = TfidfVectorizer(max_features=2000, ngram_range=(1,2))       # ------------> to create an instance of the TfidfVectorizer class for converting the cleaned text data into numerical features using the TF-IDF method, with a maximum of 5000 features and considering both unigrams and bigrams
-    X = tfidf.fit_transform(df['cleaned'])
+def train(df):
 
-X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
-    X,
-    df['subject_enc'],
-    test_size=0.2,
-    random_state=42
-)
+    tfidf = TfidfVectorizer(
+        max_features=2000,
+        ngram_range=(1, 2)
+    )
 
-model_s = LogisticRegression(
-    max_iter=3000
-)
+    X = tfidf.fit_transform(
+        df['cleaned']
+    )
 
-model_s.fit(
-    X_train_s,
-    y_train_s
-)
-    model_p = LogisticRegression(max_iter=2000).fit(X, df['priority_enc'])          # ------------> to create an instance of the LogisticRegression class for priority classification, fit the model to the entire dataset (X and df['priority_enc']), and store the trained model in the variable model_p
-    model_c = LogisticRegression(max_iter=2000).fit(X, df['category_enc'])          # ------------> to create an instance of the LogisticRegression class for category classification, fit the model to the entire dataset (X and df['category_enc']), and store the trained model in the variable model_c
-    model_t = LinearRegression().fit(X, df['resolution_time'])                      # ------------> to create an instance of the LinearRegression class for resolution time prediction, fit the model to the entire dataset (X and df['resolution_time']), and store the trained model in the variable model_t
-    accuracy = accuracy_score(df['priority_enc'], model_p.predict(X))               # ------------> to calculate the accuracy of the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the accuracy score in the variable accuracy
-    cm = confusion_matrix(df['priority_enc'], model_p.predict(X))                   # ------------> to compute the confusion matrix for the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the confusion matrix in the variable cm
-    return tfidf, model_p, model_c, model_s, model_t, accuracy, cm
+    # -------------------------
+    # SUBJECT MODEL
+    # -------------------------
 
+    X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
+        X,
+        df['subject_enc'],
+        test_size=0.2,
+        random_state=42
+    )
+
+    model_s = LogisticRegression(
+        max_iter=3000
+    )
+
+    model_s.fit(
+        X_train_s,
+        y_train_s
+    )
+
+    # -------------------------
+    # PRIORITY MODEL
+    # -------------------------
+
+    model_p = LogisticRegression(
+        max_iter=2000
+    )
+
+    model_p.fit(
+        X,
+        df['priority_enc']
+    )
+
+    # -------------------------
+    # CATEGORY MODEL
+    # -------------------------
+
+    model_c = LogisticRegression(
+        max_iter=2000
+    )
+
+    model_c.fit(
+        X,
+        df['category_enc']
+    )
+
+    # -------------------------
+    # TIME MODEL
+    # -------------------------
+
+    model_t = LinearRegression()
+
+    model_t.fit(
+        X,
+        df['resolution_time']
+    )
+
+    # -------------------------
+    # ACCURACY
+    # -------------------------
+
+    accuracy = accuracy_score(
+        df['priority_enc'],
+        model_p.predict(X)
+    )
+
+    cm = confusion_matrix(
+        df['priority_enc'],
+        model_p.predict(X)
+    )
+
+    return (
+        tfidf,
+        model_p,
+        model_c,
+        model_s,
+        model_t,
+        accuracy,
+        cm
+    )
 # -------------------------
 # UI
 # -------------------------
