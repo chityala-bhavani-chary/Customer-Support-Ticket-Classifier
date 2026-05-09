@@ -54,9 +54,14 @@ def clean_text(text):
 
 @st.cache_data
 def load_data():
-
-    file_id = "https://drive.google.com/file/d/1F0VQMA2hrS4sLEDrYvB5UYowJ1mWph6D/view?usp=sharing"
-    df = pd.read_csv(f"https://drive.google.com/uc?export=download&id={file_id}")
+    # FIXED — tells pandas exactly which file inside the zip to read
+    df = pd.read_csv(
+        "customer_support_tickets_200k.zip",
+        compression={
+            'method': 'zip',
+            'archive_name': 'customer_support_tickets_200k.csv'
+        }
+    )
 
     df.columns = df.columns.str.strip().str.lower()
 
