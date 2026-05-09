@@ -14,6 +14,10 @@
 # -------------------------
 # IMPORTS
 # -------------------------
+# -------------------------
+# IMPORTS
+# -------------------------
+
 import streamlit as st
 import pandas as pd
 import re
@@ -31,9 +35,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
 
-# --------------------------------------------------
+# -------------------------
 # NLTK SETUP
-# --------------------------------------------------
+# -------------------------
 
 try:
     nltk.data.find("corpora/stopwords")
@@ -43,9 +47,9 @@ except:
 
 STOPWORDS = set(stopwords.words("english"))
 
-# --------------------------------------------------
+# -------------------------
 # TEXT CLEANING
-# --------------------------------------------------
+# -------------------------
 
 def clean_text(text):
 
@@ -60,20 +64,24 @@ def clean_text(text):
 
     return " ".join(words)
 
-# --------------------------------------------------
+# -------------------------
 # LOAD DATA
-# --------------------------------------------------
+# -------------------------
 
 @st.cache_data
 def load_data():
 
     try:
 
-        df = pd.read_csv("customer_support_tickets.csv")
+        df = pd.read_csv(
+            "customer_support_tickets.csv"
+        )
 
     except Exception as e:
 
-        st.error(f"Dataset Error: {e}")
+        st.error(
+            f"Dataset Error: {e}"
+        )
 
         st.stop()
 
@@ -85,30 +93,44 @@ def load_data():
         .str.lower()
     )
 
-    # Rename columns safely
+    # Rename columns
 
     rename_map = {
+
         "ticket_description": "text",
+
         "ticket_subject": "subject",
+
         "issue_category": "category",
+
         "priority_level": "priority",
+
         "resolution_time_hours": "resolution_time"
     }
 
     df = df.rename(columns=rename_map)
 
+    # Required columns
+
     required_columns = [
+
         "text",
+
         "subject",
+
         "category",
+
         "priority",
+
         "resolution_time"
     ]
 
-    # Check columns exist
+    # Check missing columns
 
     missing = [
+
         col for col in required_columns
+
         if col not in df.columns
     ]
 
@@ -120,15 +142,19 @@ def load_data():
 
         st.stop()
 
-    # Keep required columns
+    # Keep needed columns
 
-    df = df[required_columns].dropna()
+    df = df[
+        required_columns
+    ].dropna()
 
     # Clean text
 
-    df["cleaned"] = df["text"].apply(clean_text)
+    df["cleaned"] = df["text"].apply(
+        clean_text
+    )
 
-    # Encode labels
+    # Label Encoding
 
     le_priority = LabelEncoder()
 
@@ -155,9 +181,9 @@ def load_data():
         le_subject
     )
 
-# --------------------------------------------------
+# -------------------------
 # TRAIN MODELS
-# --------------------------------------------------
+# -------------------------
 
 @st.cache_resource
 def train_models(df):
@@ -166,9 +192,13 @@ def train_models(df):
         max_features=1000
     )
 
-    X = tfidf.fit_transform(df["cleaned"])
+    X = tfidf.fit_transform(
+        df["cleaned"]
+    )
 
-    # ---------------- PRIORITY MODEL ----------------
+    # -------------------------
+    # PRIORITY MODEL
+    # -------------------------
 
     X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
         X,
@@ -200,7 +230,9 @@ def train_models(df):
         priority_pred
     )
 
-    # ---------------- CATEGORY MODEL ----------------
+    # -------------------------
+    # CATEGORY MODEL
+    # -------------------------
 
     category_model = LogisticRegression(
         max_iter=2000
@@ -211,7 +243,9 @@ def train_models(df):
         df["category_enc"]
     )
 
-    # ---------------- SUBJECT MODEL ----------------
+    # -------------------------
+    # SUBJECT MODEL
+    # -------------------------
 
     subject_model = LogisticRegression(
         max_iter=2000
@@ -222,7 +256,9 @@ def train_models(df):
         df["subject_enc"]
     )
 
-    # ---------------- TIME MODEL ----------------
+    # -------------------------
+    # RESOLUTION TIME MODEL
+    # -------------------------
 
     time_model = LinearRegression()
 
@@ -241,9 +277,9 @@ def train_models(df):
         cm
     )
 
-# --------------------------------------------------
+# -------------------------
 # LOAD EVERYTHING
-# --------------------------------------------------
+# -------------------------
 
 (
     df,
@@ -262,9 +298,9 @@ def train_models(df):
     cm
 ) = train_models(df)
 
-# --------------------------------------------------
+# -------------------------
 # STREAMLIT UI
-# --------------------------------------------------
+# -------------------------
 
 st.set_page_config(
     page_title="Smart Ticket Classifier",
@@ -281,9 +317,9 @@ user_text = st.text_area(
     "✍️ Enter Customer Complaint"
 )
 
-# --------------------------------------------------
+# -------------------------
 # PREDICTION
-# --------------------------------------------------
+# -------------------------
 
 if st.button("Predict"):
 
@@ -295,9 +331,13 @@ if st.button("Predict"):
 
     else:
 
-        cleaned = clean_text(user_text)
+        cleaned = clean_text(
+            user_text
+        )
 
-        x = tfidf.transform([cleaned])
+        x = tfidf.transform(
+            [cleaned]
+        )
 
         # Predictions
 
@@ -313,11 +353,17 @@ if st.button("Predict"):
             [subject_model.predict(x)[0]]
         )[0]
 
-        resolution_time = time_model.predict(x)[0]
+        resolution_time = time_model.predict(
+            x
+        )[0]
 
-        # Results
+        # -------------------------
+        # RESULTS
+        # -------------------------
 
-        st.subheader("📊 Prediction Results")
+        st.subheader(
+            "📊 Prediction Results"
+        )
 
         st.error(
             f"🚨 Priority: {priority}"
@@ -336,13 +382,17 @@ if st.button("Predict"):
             f"{round(resolution_time, 2)} hours"
         )
 
-        st.subheader("📈 Model Accuracy")
+        st.subheader(
+            "📈 Model Accuracy"
+        )
 
         st.write(
             f"Priority Model Accuracy: "
             f"{round(accuracy, 2)}"
         )
 
-        st.subheader("📌 Confusion Matrix")
+        st.subheader(
+            "📌 Confusion Matrix"
+        )
 
         st.write(cm)
