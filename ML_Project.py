@@ -56,17 +56,14 @@ def load_data():
 
     df = df[['text','subject','category','priority','resolution_time']].dropna()
 
-
-
     df['cleaned'] = df['text'].apply(clean_text)
 
-    le_p, le_c, le_s = LabelEncoder(), LabelEncoder(), LabelEncoder()
+    le_p, le_c = LabelEncoder(), LabelEncoder()
 
     df['priority_enc'] = le_p.fit_transform(df['priority'])
     df['category_enc'] = le_c.fit_transform(df['category'])
-    df['subject_enc'] = le_s.fit_transform(df['subject'])
 
-    return df, le_p, le_c, le_s
+    return df, le_p, le_c
 
 @st.cache_resource
 def train(df):
@@ -76,21 +73,18 @@ def train(df):
     X = tfidf.fit_transform(df['cleaned'])
 
     X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
-        X, df['priority_enc'], test_size=0.2, random_state=42
-    )
-
-    X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
-        X, df['subject_enc'], test_size=0.2, random_state=42
+        X,
+        df['priority_enc'],
+        test_size=0.2,
+        random_state=42
     )
 
     model_p = LogisticRegression(max_iter=3000)
     model_c = LogisticRegression(max_iter=3000)
-    model_s = LogisticRegression(max_iter=3000)
     model_t = LinearRegression()
 
     model_p.fit(X_train_p, y_train_p)
     model_c.fit(X, df['category_enc'])
-    model_s.fit(X_train_s, y_train_s)
     model_t.fit(X, df['resolution_time'])
 
     pred_p = model_p.predict(X_test_p)
@@ -99,28 +93,23 @@ def train(df):
 
     cm = confusion_matrix(y_test_p, pred_p)
 
-    return tfidf, model_p, model_c, model_s, model_t, accuracy, cm
+    return tfidf, X, model_p, model_c, model_t, accuracy, cm
 
 st.set_page_config(page_title="Ticket AI", layout="centered")
 
 st.title("🎯 Smart Ticket Generator")
 
-df, le_p, le_c, le_s = load_data()
+df, le_p, le_c = load_data()
 
-tfidf, mp, mc, ms, mt, accuracy, cm = train(df)
+tfidf, X, mp, mc, mt, accuracy, cm = train(df)
 
 text = st.text_area("✍️ Enter Customer Complaint")
 
 def predict_subject(user_text):
 
-    user_vector = tfidf.transform(
-        [clean_text(user_text)]
-    )
+    user_vector = tfidf.transform([clean_text(user_text)])
 
-    similarity = cosine_similarity(
-        user_vector,
-        X
-    )
+    similarity = cosine_similarity(user_vector, X)
 
     index = similarity.argmax()
 
@@ -131,26 +120,37 @@ if text.strip():
     x = tfidf.transform([clean_text(text)])
 
     p = le_p.inverse_transform([mp.predict(x)[0]])[0]
+
     c = le_c.inverse_transform([mc.predict(x)[0]])[0]
+
     s = predict_subject(text)
+
     t = mt.predict(x)[0]
 
     st.subheader("Model Performance")
+
     st.write("Accuracy:", round(accuracy,2))
+
     st.write("Confusion Matrix")
+
     st.write(cm)
 
     st.markdown("## 🚨 Priority Level")
+
     st.error(p.upper())
 
     st.markdown("### 🏷️ Issue Category")
+
     st.info(c)
 
     st.markdown("### 📝 Ticket Subject")
+
     st.success(s)
 
     st.markdown("### ⏱️ Estimated Resolution Time")
+
     st.write(f"**{round(float(t),2)} hours**")
 
 else:
+
     st.info("Enter complaint to generate ticket")
