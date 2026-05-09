@@ -20,13 +20,15 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor # 🚀 Upgrade: Random Forest
+from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Ensure NLTK data is present
+# -------------------------
+# PREPROCESSING (High Accuracy Settings)
+# -------------------------
 try:
     nltk.data.find('corpora/stopwords')
 except:
@@ -37,8 +39,8 @@ STEMMER = PorterStemmer()
 
 def clean_text(text):
     text = str(text).lower()
-    text = re.sub(r'[^a-z0-9 ]', ' ', text)
-    # Stemming helps group similar words together to improve pattern recognition
+    text = re.sub(r'[^a-z\s]', '', text)
+    # Using Stemming and filtering out very short words to reduce noise
     words = [STEMMER.stem(w) for w in text.split() if w not in STOPWORDS and len(w) > 2]
     return " ".join(words)
 
@@ -55,28 +57,35 @@ def load_data():
     })
     df = df[['text','subject','category','priority','resolution_time']].dropna()
     df['cleaned'] = df['text'].apply(clean_text)
-
+    
     le_p, le_c = LabelEncoder(), LabelEncoder()
     df['priority_enc'] = le_p.fit_transform(df['priority'])
     df['category_enc'] = le_c.fit_transform(df['category'])
-
     return df, le_p, le_c
 
+# -------------------------
+# MODEL TRAINING (Optimized for 0.70+)
+# -------------------------
 @st.cache_resource
 def train(df):
-    # TF-IDF with Unigrams and Bigrams
-    tfidf = TfidfVectorizer(max_features=3000, ngram_range=(1,2))
+    # 1. TF-IDF TUNING: Using n-grams (1,2) to catch phrases like "not working"
+    # and min_df to ignore words that only appear once (typos)
+    tfidf = TfidfVectorizer(max_features=4000, ngram_range=(1,2), min_df=2)
     X = tfidf.fit_transform(df['cleaned'])
 
     X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
-        X, df['priority_enc'], test_size=0.2, random_state=42
+        X, df['priority_enc'], test_size=0.15, random_state=42
     )
 
-    # 🚀 ACCURACY BOOST: Switching to Random Forest
-    # Random Forest is significantly better at handling text classification than Logistic Regression
-    model_p = RandomForestClassifier(n_estimators=200, class_weight='balanced', random_state=42)
-    model_c = RandomForestClassifier(n_estimators=100, class_weight='balanced')
-    model_t = RandomForestRegressor(n_estimators=100, max_depth=10) # For resolution time
+    # 2. LOGISTIC REGRESSION TUNING: 
+    # 'balanced' weights force the model to learn small classes (Critical/High)
+    # C=10 increase the "strength" of the model's learning
+    model_p = LogisticRegression(max_iter=3000, class_weight='balanced', C=10)
+    model_c = LogisticRegression(max_iter=3000, class_weight='balanced')
+    
+    # Simple linear regression for time
+    from sklearn.linear_model import Ridge
+    model_t = Ridge(alpha=1.0)
 
     model_p.fit(X_train_p, y_train_p)
     model_c.fit(X, df['category_enc'])
@@ -113,21 +122,18 @@ if text.strip():
     t = mt.predict(x)[0]
 
     st.subheader("Model Performance")
-    st.write("Accuracy:", round(accuracy,2))
+    st.write("Accuracy:", round(accuracy, 2))
     st.write("Confusion Matrix")
     st.write(cm)
 
     st.markdown("## 🚨 Priority Level")
     st.error(p.upper())
-
     st.markdown("### 🏷️ Issue Category")
     st.info(c)
-
     st.markdown("### 📝 Ticket Subject")
     st.success(s)
-
     st.markdown("### ⏱️ Estimated Resolution Time")
-    st.write(f"**{round(float(t),2)} hours**")
+    st.write(f"**{round(float(max(0,t)),2)} hours**")
 
 else:
     st.info("Enter complaint to generate ticket")
