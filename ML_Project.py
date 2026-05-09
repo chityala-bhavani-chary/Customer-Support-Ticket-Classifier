@@ -54,14 +54,9 @@ def clean_text(text):
 
 @st.cache_data
 def load_data():
-    # FIXED — tells pandas exactly which file inside the zip to read
     df = pd.read_csv(
-        "customer_support_tickets_200k.zip",
-        compression={
-            'method': 'zip',
-            'archive_name': 'customer_support_tickets_200k.csv'
-        }
-    )
+    "customer_support_tickets_200k.zip",
+    compression='zip')
 
     df.columns = df.columns.str.strip().str.lower()
 
