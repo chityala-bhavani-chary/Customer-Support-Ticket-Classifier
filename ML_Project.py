@@ -103,7 +103,7 @@ def load_data():
     top_subjects = (
         df['subject']
         .value_counts()
-        .nlargest(10)
+        .nlargest(15)
         .index
     )
 
