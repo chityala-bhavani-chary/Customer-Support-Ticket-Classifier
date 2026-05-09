@@ -67,13 +67,11 @@ def load_data():                                        # ------------> to defin
     # Encode
     le_p = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'priority' column in the dataset, which contains categorical values representing the priority levels of customer support tickets
     le_c = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'category' column in the dataset, which contains categorical values representing the issue categories of customer support tickets
-    le_s = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'subject' column in the dataset, which contains categorical values representing the subjects of customer support tickets
 
     df['priority_enc'] = le_p.fit_transform(df['priority'])         # ------------> to encode the 'priority' column in the dataset using the fit_transform method of the LabelEncoder instance le_p, which converts the categorical values into numerical labels and stores the encoded values in a new column called 'priority_enc'
     df['category_enc'] = le_c.fit_transform(df['category'])         # ------------> to encode the 'category' column in the dataset using the fit_transform method of the LabelEncoder instance le_c, which converts the categorical values into numerical labels and stores the encoded values in a new column called 'category_enc'
-    df['subject_enc'] = le_s.fit_transform(df['subject'])           # ------------> to encode the 'subject' column in the dataset using the fit_transform method of the LabelEncoder instance le_s, which converts the categorical values into numerical labels and stores the encoded values in a new column called 'subject_enc'
 
-    return df, le_p, le_c, le_s
+    return df, le_p, le_c
 
 # -------------------------
 # TRAIN MODELS
@@ -85,13 +83,14 @@ def train(df):          # ------------> to define a function called train that t
 
     X_train, X_test, y_train_p, y_test_p = train_test_split(X, df['priority_enc'], test_size=0.3, random_state=42)            # ------------> to split the dataset into training and testing sets for the priority classification task, using the train_test_split function from scikit-learn, with 30% of the data reserved for testing and a random state of 42 for reproducibility
 
-    model_p = LogisticRegression(max_iter=2000).fit(X, df['priority_enc'])          # ------------> to create an instance of the LogisticRegression class for priority classification, fit the model to the entire dataset (X and df['priority_enc']), and store the trained model in the variable model_p
+    model_p = LogisticRegression(max_iter=2000)
+    model_p.fit(X_train, y_train_p)                                                  # ------------> to create an instance of the LogisticRegression class for priority classification, fit the model to the entire dataset (X and df['priority_enc']), and store the trained model in the variable model_p
     model_c = LogisticRegression(max_iter=2000).fit(X, df['category_enc'])          # ------------> to create an instance of the LogisticRegression class for category classification, fit the model to the entire dataset (X and df['category_enc']), and store the trained model in the variable model_c
-    model_s = LogisticRegression(max_iter=2000).fit(X, df['subject_enc'])           # ------------> to create an instance of the LogisticRegression class for subject classification, fit the model to the entire dataset (X and df['subject_enc']), and store the trained model in the variable model_s
     model_t = LinearRegression().fit(X, df['resolution_time'])                      # ------------> to create an instance of the LinearRegression class for resolution time prediction, fit the model to the entire dataset (X and df['resolution_time']), and store the trained model in the variable model_t
-    accuracy = accuracy_score(df['priority_enc'], model_p.predict(X))               # ------------> to calculate the accuracy of the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the accuracy score in the variable accuracy
-    cm = confusion_matrix(df['priority_enc'], model_p.predict(X))                   # ------------> to compute the confusion matrix for the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the confusion matrix in the variable cm
-    return tfidf, model_p, model_c, model_s, model_t, accuracy, cm
+    pred = model_p.predict(X_test)
+    accuracy = accuracy_score(y_test_p, pred)                                       # ------------> to calculate the accuracy of the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the accuracy score in the variable accuracy
+    cm = confusion_matrix(y_test_p, pred)                                           # ------------> to compute the confusion matrix for the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the confusion matrix in the variable cm
+    return tfidf, model_p, model_c, model_t, accuracy, cm
 
 # -------------------------
 # UI
@@ -99,7 +98,7 @@ def train(df):          # ------------> to define a function called train that t
 st.set_page_config(page_title="Ticket AI", layout="centered")
 st.title("🎯 Smart Ticket Generator")
 
-df, le_p, le_c, le_s = load_data()
+df, le_p, le_c = load_data()
 tfidf, mp, mc, ms, mt, accuracy, cm = train(df)
 
 text = st.text_area("✍️ Enter Customer Complaint")
@@ -111,7 +110,6 @@ if text.strip():
     # Predictions
     p = le_p.inverse_transform([mp.predict(x)[0]])[0]               #---> to predict the priority level of the customer complaint using the trained priority classification model (mp) and the TF-IDF features (x), and then inverse transform the predicted label back to its original categorical value using the LabelEncoder instance le_p, storing the result in the variable p
     c = le_c.inverse_transform([mc.predict(x)[0]])[0]               #---> to predict the issue category of the customer complaint using the trained category classification model (mc) and the TF-IDF features (x), and then inverse transform the predicted label back to its original categorical value using the LabelEncoder instance le_c, storing the result in the variable c
-    s = le_s.inverse_transform([ms.predict(x)[0]])[0]               #---> to predict the ticket subject of the customer complaint using the trained subject classification model (ms) and the TF-IDF features (x), and then inverse transform the predicted label back to its original categorical value using the LabelEncoder instance le_s, storing the result in the variable s
     t = mt.predict(x)[0]
 
     # 🔥 UI OUTPUT
@@ -124,9 +122,6 @@ if text.strip():
 
     st.markdown("### 🏷️ Issue Category")
     st.info(c)                                              #---> to display the predicted issue category of the customer complaint in the Streamlit app, formatted as an informational message
-
-    st.markdown("### 📝 Ticket Subject")
-    st.success(s)                                           #---> to display the predicted ticket subject of the customer complaint in the Streamlit app, formatted as a success message
 
     st.markdown("### ⏱️ Estimated Resolution Time")
     st.write(f"**{round(t,2)} hours**")                     #---> to display the predicted estimated resolution time for the customer complaint in the Streamlit app, formatted in bold and rounded to 2 decimal places, followed by the unit "hours"
