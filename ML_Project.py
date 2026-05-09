@@ -14,310 +14,348 @@
 # -------------------------
 # IMPORTS
 # -------------------------
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import re
 import nltk
 
 from nltk.corpus import stopwords
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
-# -------------------------
-# NLTK Setup
-# -------------------------
+from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
+
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+
+# --------------------------------------------------
+# NLTK SETUP
+# --------------------------------------------------
 
 try:
-    nltk.data.find('corpora/stopwords')
+    nltk.data.find("corpora/stopwords")
 
 except:
-    nltk.download('stopwords')
+    nltk.download("stopwords")
 
-STOPWORDS = set(stopwords.words('english'))
+STOPWORDS = set(stopwords.words("english"))
 
-# -------------------------
-# Clean Text
-# -------------------------
+# --------------------------------------------------
+# TEXT CLEANING
+# --------------------------------------------------
 
 def clean_text(text):
 
     text = str(text).lower()
 
-    text = re.sub(r'[^a-zA-Z ]', '', text)
+    text = re.sub(r"[^a-zA-Z ]", " ", text)
 
     words = [
-        w for w in text.split()
-        if w not in STOPWORDS and len(w) > 2
+        word for word in text.split()
+        if word not in STOPWORDS and len(word) > 2
     ]
 
     return " ".join(words)
 
-# -------------------------
-# Load Data
-# -------------------------
+# --------------------------------------------------
+# LOAD DATA
+# --------------------------------------------------
 
 @st.cache_data
 def load_data():
 
-    df = pd.read_csv("customer_support_tickets.csv")
+    try:
 
-    df.columns = df.columns.str.strip().str.lower()
+        df = pd.read_csv("customer_support_tickets.csv")
 
-    # Rename Columns
+    except Exception as e:
 
-    df = df.rename(columns={
-        'ticket_description': 'text',
-        'ticket_subject': 'subject',
-        'issue_category': 'category',
-        'priority_level': 'priority',
-        'resolution_time_hours': 'resolution_time'
-    })
+        st.error(f"Dataset Error: {e}")
 
-    # Required Columns
+        st.stop()
 
-    df = df[
-        [
-            'text',
-            'subject',
-            'category',
-            'priority',
-            'resolution_time'
-        ]
-    ].dropna()
+    # Clean column names
 
-    # Keep only top 15 frequent subjects
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+    )
+
+    # Rename columns safely
+
+    rename_map = {
+        "ticket_description": "text",
+        "ticket_subject": "subject",
+        "issue_category": "category",
+        "priority_level": "priority",
+        "resolution_time_hours": "resolution_time"
+    }
+
+    df = df.rename(columns=rename_map)
+
+    required_columns = [
+        "text",
+        "subject",
+        "category",
+        "priority",
+        "resolution_time"
+    ]
+
+    # Check columns exist
+
+    missing = [
+        col for col in required_columns
+        if col not in df.columns
+    ]
+
+    if missing:
+
+        st.error(
+            f"Missing Columns: {missing}"
+        )
+
+        st.stop()
+
+    # Keep required columns
+
+    df = df[required_columns].dropna()
+
+    # Keep only common subjects
 
     top_subjects = (
-        df['subject']
+        df["subject"]
         .value_counts()
         .nlargest(15)
         .index
     )
 
     df = df[
-        df['subject'].isin(top_subjects)
+        df["subject"].isin(top_subjects)
     ]
 
-    # Clean Text
+    # Clean text
 
-    df['cleaned'] = df['text'].apply(clean_text)
+    df["cleaned"] = df["text"].apply(clean_text)
 
-    # Label Encoding
+    # Encode labels
 
-    le_p = LabelEncoder()
+    le_priority = LabelEncoder()
 
-    le_c = LabelEncoder()
+    le_category = LabelEncoder()
 
-    le_s = LabelEncoder()
+    le_subject = LabelEncoder()
 
-    df['priority_enc'] = le_p.fit_transform(
-        df['priority']
+    df["priority_enc"] = le_priority.fit_transform(
+        df["priority"]
     )
 
-    df['category_enc'] = le_c.fit_transform(
-        df['category']
+    df["category_enc"] = le_category.fit_transform(
+        df["category"]
     )
 
-    df['subject_enc'] = le_s.fit_transform(
-        df['subject']
+    df["subject_enc"] = le_subject.fit_transform(
+        df["subject"]
     )
 
-    return df, le_p, le_c, le_s
+    return (
+        df,
+        le_priority,
+        le_category,
+        le_subject
+    )
 
-# -------------------------
-# Train Models
-# -------------------------
+# --------------------------------------------------
+# TRAIN MODELS
+# --------------------------------------------------
 
 @st.cache_resource
-def train(df):
+def train_models(df):
 
     tfidf = TfidfVectorizer(
-        max_features=2000,
-        ngram_range=(1, 2)
+        max_features=1000
     )
 
-    X = tfidf.fit_transform(df['cleaned'])
+    X = tfidf.fit_transform(df["cleaned"])
 
-    # -------------------------
-    # Priority Model
-    # -------------------------
+    # ---------------- PRIORITY MODEL ----------------
 
     X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
         X,
-        df['priority_enc'],
+        df["priority_enc"],
         test_size=0.3,
         random_state=42
     )
 
-    model_p = LogisticRegression(max_iter=2000)
+    priority_model = LogisticRegression(
+        max_iter=2000
+    )
 
-    model_p.fit(X_train_p, y_train_p)
+    priority_model.fit(
+        X_train_p,
+        y_train_p
+    )
 
-    pred_p = model_p.predict(X_test_p)
+    priority_pred = priority_model.predict(
+        X_test_p
+    )
 
     accuracy = accuracy_score(
         y_test_p,
-        pred_p
+        priority_pred
     )
 
     cm = confusion_matrix(
         y_test_p,
-        pred_p
+        priority_pred
     )
 
-    # -------------------------
-    # Category Model
-    # -------------------------
+    # ---------------- CATEGORY MODEL ----------------
 
-    X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(
+    category_model = LogisticRegression(
+        max_iter=2000
+    )
+
+    category_model.fit(
         X,
-        df['category_enc'],
-        test_size=0.3,
-        random_state=42
+        df["category_enc"]
     )
 
-    model_c = LogisticRegression(max_iter=2000)
+    # ---------------- SUBJECT MODEL ----------------
 
-    model_c.fit(X_train_c, y_train_c)
+    subject_model = LogisticRegression(
+        max_iter=2000
+    )
 
-    # -------------------------
-    # Subject Model
-    # -------------------------
-
-    X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
+    subject_model.fit(
         X,
-        df['subject_enc'],
-        test_size=0.3,
-        random_state=42
+        df["subject_enc"]
     )
 
-    model_s = LogisticRegression(max_iter=2000)
+    # ---------------- TIME MODEL ----------------
 
-    model_s.fit(X_train_s, y_train_s)
+    time_model = LinearRegression()
 
-    # -------------------------
-    # Resolution Time Model
-    # -------------------------
-
-    X_train_t, X_test_t, y_train_t, y_test_t = train_test_split(
+    time_model.fit(
         X,
-        df['resolution_time'],
-        test_size=0.3,
-        random_state=42
+        df["resolution_time"]
     )
-
-    model_t = LinearRegression()
-
-    model_t.fit(X_train_t, y_train_t)
 
     return (
         tfidf,
-        model_p,
-        model_c,
-        model_s,
-        model_t,
+        priority_model,
+        category_model,
+        subject_model,
+        time_model,
         accuracy,
         cm
     )
 
-# -------------------------
-# Streamlit UI
-# -------------------------
+# --------------------------------------------------
+# LOAD EVERYTHING
+# --------------------------------------------------
+
+(
+    df,
+    le_priority,
+    le_category,
+    le_subject
+) = load_data()
+
+(
+    tfidf,
+    priority_model,
+    category_model,
+    subject_model,
+    time_model,
+    accuracy,
+    cm
+) = train_models(df)
+
+# --------------------------------------------------
+# STREAMLIT UI
+# --------------------------------------------------
 
 st.set_page_config(
-    page_title="Ticket AI",
+    page_title="Smart Ticket Classifier",
     layout="centered"
 )
 
 st.title("🎯 Smart Ticket Classifier")
 
-# Load Data
+st.write(
+    "Predict ticket priority, category, subject, and estimated resolution time."
+)
 
-df, le_p, le_c, le_s = load_data()
-
-# Train Models
-
-(
-    tfidf,
-    mp,
-    mc,
-    ms,
-    mt,
-    accuracy,
-    cm
-) = train(df)
-
-# User Input
-
-text = st.text_area(
+user_text = st.text_area(
     "✍️ Enter Customer Complaint"
 )
 
-# -------------------------
-# Prediction
-# -------------------------
+# --------------------------------------------------
+# PREDICTION
+# --------------------------------------------------
 
-if text.strip():
+if st.button("Predict"):
 
-    x = tfidf.transform(
-        [clean_text(text)]
-    )
+    if not user_text.strip():
 
-    # Predictions
+        st.warning(
+            "Please enter complaint text."
+        )
 
-    p = le_p.inverse_transform(
-        [mp.predict(x)[0]]
-    )[0]
+    else:
 
-    c = le_c.inverse_transform(
-        [mc.predict(x)[0]]
-    )[0]
+        cleaned = clean_text(user_text)
 
-    s = le_s.inverse_transform(
-        [ms.predict(x)[0]]
-    )[0]
+        x = tfidf.transform([cleaned])
 
-    t = mt.predict(x)[0]
+        # Predictions
 
-    # -------------------------
-    # UI Output
-    # -------------------------
+        priority = le_priority.inverse_transform(
+            [priority_model.predict(x)[0]]
+        )[0]
 
-    st.subheader("📊 Model Performance")
+        category = le_category.inverse_transform(
+            [category_model.predict(x)[0]]
+        )[0]
 
-    st.write(
-        "Priority Accuracy:",
-        round(accuracy, 2)
-    )
+        subject = le_subject.inverse_transform(
+            [subject_model.predict(x)[0]]
+        )[0]
 
-    st.write("Confusion Matrix")
+        resolution_time = time_model.predict(x)[0]
 
-    st.write(cm)
+        # Results
 
-    st.markdown("## 🚨 Priority Level")
+        st.subheader("📊 Prediction Results")
 
-    st.error(p.upper())
+        st.error(
+            f"🚨 Priority: {priority}"
+        )
 
-    st.markdown("### 🏷️ Issue Category")
+        st.info(
+            f"🏷️ Category: {category}"
+        )
 
-    st.info(c)
+        st.success(
+            f"📝 Subject: {subject}"
+        )
 
-    st.markdown("### 📝 Ticket Subject")
+        st.write(
+            f"⏱️ Estimated Resolution Time: "
+            f"{round(resolution_time, 2)} hours"
+        )
 
-    st.success(s)
+        st.subheader("📈 Model Accuracy")
 
-    st.markdown("### ⏱️ Estimated Resolution Time")
+        st.write(
+            f"Priority Model Accuracy: "
+            f"{round(accuracy, 2)}"
+        )
 
-    st.write(
-        f"**{round(t, 2)} hours**"
-    )
+        st.subheader("📌 Confusion Matrix")
 
-else:
-
-    st.info(
-        "Enter complaint to generate ticket"
-    )
+        st.write(cm)
