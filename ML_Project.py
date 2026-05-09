@@ -124,19 +124,6 @@ def load_data():
 
     df = df[required_columns].dropna()
 
-    # Keep only common subjects
-
-    top_subjects = (
-        df["subject"]
-        .value_counts()
-        .nlargest(30)
-        .index
-    )
-
-    df = df[
-        df["subject"].isin(top_subjects)
-    ]
-
     # Clean text
 
     df["cleaned"] = df["text"].apply(clean_text)
