@@ -243,18 +243,25 @@ def train_models(df):
         df["category_enc"]
     )
 
-    # -------------------------
-    # SUBJECT MODEL
-    # -------------------------
+# -------------------------
+# SUBJECT MODEL
+# -------------------------
 
-    subject_model = LogisticRegression(
-        max_iter=2000
-    )
+X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(
+    X,
+    df["subject_enc"],
+    test_size=0.3,
+    random_state=42
+)
 
-    subject_model.fit(
-        X,
-        df["subject_enc"]
-    )
+subject_model = LogisticRegression(
+    max_iter=2000
+)
+
+subject_model.fit(
+    X_train_s,
+    y_train_s
+)
 
     # -------------------------
     # RESOLUTION TIME MODEL
