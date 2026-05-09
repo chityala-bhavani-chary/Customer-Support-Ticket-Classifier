@@ -44,12 +44,76 @@ def clean_text(text):                                   # ------------> to defin
 # -------------------------
 # LOAD DATA
 # -------------------------
-@st.cache_data                                          # ------------> to use the Streamlit caching mechanism to cache the results of the load_data function to improve performance
-def load_data():                                        # ------------> to define a function called load_data that loads the dataset, cleans column names, performs text preprocessing, and encodes categorical labels
-    df = pd.read_csv("customer_support_tickets.csv")
-    df.columns = df.columns.str.strip().str.lower()
-    df = df[['text', 'subject', 'category', 'priority', 'resolution_time']].dropna()
-    # Keep only Top 10 most frequent subjects
+@st.cache_data
+def load_data():
+
+    df = pd.read_csv(
+        "customer_support_tickets.csv"
+    )
+
+    # Clean column names
+
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+    )
+
+    # 🔥 Show actual dataset columns
+
+    st.write("Dataset Columns:", df.columns.tolist())
+
+    # Rename only if columns exist
+
+    rename_map = {}
+
+    if 'ticket_description' in df.columns:
+        rename_map['ticket_description'] = 'text'
+
+    if 'ticket_subject' in df.columns:
+        rename_map['ticket_subject'] = 'subject'
+
+    if 'issue_category' in df.columns:
+        rename_map['issue_category'] = 'category'
+
+    if 'priority_level' in df.columns:
+        rename_map['priority_level'] = 'priority'
+
+    if 'resolution_time_hours' in df.columns:
+        rename_map['resolution_time_hours'] = 'resolution_time'
+
+    df = df.rename(columns=rename_map)
+
+    # ✅ Check required columns
+
+    required = [
+        'text',
+        'subject',
+        'category',
+        'priority',
+        'resolution_time'
+    ]
+
+    missing = [
+        col for col in required
+        if col not in df.columns
+    ]
+
+    if missing:
+
+        st.error(
+            f"Missing Columns: {missing}"
+        )
+
+        st.stop()
+
+    # Keep required columns
+
+    df = df[
+        required
+    ].dropna()
+
+    # 🔥 Keep only Top 10 subjects
 
     top_subjects = (
         df['subject']
@@ -57,34 +121,38 @@ def load_data():                                        # ------------> to defin
         .nlargest(10)
         .index
     )
-    
+
     df = df[
         df['subject'].isin(top_subjects)
     ]
 
-    # Map columns
-    df = df.rename(columns={
-        'ticket_description': 'text',
-        'ticket_subject': 'subject',
-        'issue_category': 'category',
-        'priority_level': 'priority',
-        'resolution_time_hours': 'resolution_time'
-    })
+    # Clean text
 
-    df = df[['text', 'subject', 'category', 'priority', 'resolution_time']].dropna()
-    df['cleaned'] = df['text'].apply(clean_text)
+    df['cleaned'] = df['text'].apply(
+        clean_text
+    )
 
-    # Encode
-    le_p = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'priority' column
-    le_c = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'category' column
-    le_s = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'subject' column
+    # Encoding
 
-    df['priority_enc'] = le_p.fit_transform(df['priority'])         # ------------> to encode the 'priority' column into numerical labels
-    df['category_enc'] = le_c.fit_transform(df['category'])         # ------------> to encode the 'category' column into numerical labels
-    df['subject_enc'] = le_s.fit_transform(df['subject'])           # ------------> to encode the 'subject' column into numerical labels
+    le_p = LabelEncoder()
+
+    le_c = LabelEncoder()
+
+    le_s = LabelEncoder()
+
+    df['priority_enc'] = le_p.fit_transform(
+        df['priority']
+    )
+
+    df['category_enc'] = le_c.fit_transform(
+        df['category']
+    )
+
+    df['subject_enc'] = le_s.fit_transform(
+        df['subject']
+    )
 
     return df, le_p, le_c, le_s
-
 # -------------------------
 # TRAIN MODELS
 # -------------------------
