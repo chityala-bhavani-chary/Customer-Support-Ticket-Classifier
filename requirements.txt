@@ -1,0 +1,24 @@
+# ML Project: Smart Ticket Classification & Resolution Time Prediction
+  This project focuses on building a machine learning model to classify customer support tickets into priority levels, issue categories, and ticket subjects, as well as predicting the estimated resolution time. 
+  The model is trained on a dataset of customer support tickets and is designed to assist support teams in efficiently managing and prioritizing incoming tickets.
+
+# The project includes the following steps:
+1. Data Loading and Preprocessing: Load the dataset, clean the text data, and encode categorical variables.
+2. Model Training: Train separate models for priority classification, category classification, subject classification, and resolution time prediction.
+3. Model Evaluation: Evaluate the performance of the classification models using accuracy and confusion matrix.
+4. Streamlit UI: Create an interactive user interface using Streamlit to allow users to input customer complaints and receive predictions for priority level, issue category, ticket subject, and estimated resolution time.
+    
+The project utilizes libraries such as pandas for data manipulation, scikit-learn for machine learning, and Streamlit for building the web application interface.
+
+##Note: Ensure that the dataset "customer_support_tickets.csv" is available in the same directory as this script for it to run successfully.##
+
+# Import necessary libraries
+- streamlit
+- pandas
+- numpy
+- tensorflow
+- scikit-learn
+- matplotlib
+- seaborn
+- nltk
+- wordcloud
