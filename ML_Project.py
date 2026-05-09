@@ -14,164 +14,122 @@
 # -------------------------
 # IMPORTS
 # -------------------------
-import streamlit as st
-import pandas as pd
-import re
-import nltk
-from nltk.corpus import stopwords
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.metrics import accuracy_score, confusion_matrix
+import pandas as pd                                       # ------------> to import the pandas library for data manipulation and analysis
+import streamlit as st                                    # ------------> to import the Streamlit library for building the web application interface
+import re                                                 # ------------> to import the regular expressions library for text cleaning and preprocessing
+
+from sklearn.feature_extraction.text import TfidfVectorizer                     # ------------> to import the TfidfVectorizer class from scikit-learn for converting text data into numerical features using the TF-IDF method
+from sklearn.linear_model import LogisticRegression, LinearRegression           # ------------> to import the LogisticRegression and LinearRegression classes from scikit-learn for building classification and regression models
+from sklearn.preprocessing import LabelEncoder                                  # ------------> to import the LabelEncoder class from scikit-learn for encoding categorical variables
+from sklearn.metrics import accuracy_score, confusion_matrix                    # ------------> to import the accuracy_score and confusion_matrix functions from scikit-learn for evaluating the performance of classification models
+from sklearn.model_selection import train_test_split                            # ------------> to import the train_test_split function from scikit-learn for splitting the dataset into training and testing sets
 
 # -------------------------
-# NLTK SETUP (Required for Deployment)
+# CLEAN TEXT
 # -------------------------
-@st.cache_resource
-def download_nltk_data():
-    nltk.download("stopwords")
+from nltk.corpus import stopwords                       # ------------> to import the stopwords corpus from the Natural Language Toolkit (nltk) for removing common words that do not contribute much to the meaning of the text during text preprocessing
+import nltk                                             # ------------> to import the Natural Language Toolkit (nltk) library for natural language processing tasks, including downloading the stopwords corpus
 
-download_nltk_data()
-STOPWORDS = set(stopwords.words("english"))
+nltk.download('stopwords')                              # ------------> to download the stopwords corpus from nltk, which is necessary for removing common words during text preprocessing
 
-# -------------------------
-# TEXT CLEANING
-# -------------------------
-def clean_text(text):
+STOPWORDS = set(stopwords.words('english'))
+
+def clean_text(text):                                   # ------------> to define a function called clean_text that takes a text input and performs cleaning and preprocessing tasks such as converting to lowercase, removing non-alphabetic characters, and filtering out stopwords
     text = str(text).lower()
-    text = re.sub(r"[^a-zA-Z ]", " ", text)
-    words = [
-        word for word in text.split() 
-        if word not in STOPWORDS and len(word) > 2
-    ]
+    text = re.sub(r'[^a-zA-Z ]', '', text)
+
+    words = text.split()
+    words = [w for w in words if w not in STOPWORDS and len(w) > 2]
+
     return " ".join(words)
 
 # -------------------------
 # LOAD DATA
 # -------------------------
-@st.cache_data
-def load_data():
-    try:
-        # Ensure your CSV file is named exactly this and in the same folder
-        df = pd.read_csv("customer_support_tickets.csv")
-    except Exception as e:
-        st.error(f"Dataset Error: {e}. Please ensure 'customer_support_tickets.csv' is in the repository.")
-        st.stop()
-
-    # Clean column names
+@st.cache_data                                          # ------------> to use the Streamlit caching mechanism to cache the results of the load_data function, which loads and preprocesses the dataset, to improve performance by avoiding redundant computations when the function is called multiple times
+def load_data():                                        # ------------> to define a function called load_data that loads the dataset from a CSV file, preprocesses the text data, and encodes categorical variables for use in machine learning models
+    df = pd.read_csv("customer_support_tickets.csv")
     df.columns = df.columns.str.strip().str.lower()
 
-    # Rename columns to match logic
-    rename_map = {
-        "ticket_description": "text",
-        "ticket_subject": "subject",
-        "issue_category": "category",
-        "priority_level": "priority",
-        "resolution_time_hours": "resolution_time"
-    }
-    df = df.rename(columns=rename_map)
+    # Map columns
+    df = df.rename(columns={
+        'ticket_description': 'text',
+        'ticket_subject': 'subject',
+        'issue_category': 'category',
+        'priority_level': 'priority',
+        'resolution_time_hours': 'resolution_time'
+    })
 
-    # Required columns
-    required_columns = ["text", "subject", "category", "priority", "resolution_time"]
-    
-    # Check missing columns
-    missing = [col for col in required_columns if col not in df.columns]
-    if missing:
-        st.error(f"Missing Columns in CSV: {missing}")
-        st.stop()
+    df = df[['text', 'subject', 'category', 'priority', 'resolution_time']].dropna()
 
-    # Keep needed columns and drop NaNs
-    df = df[required_columns].dropna()
+    df['cleaned'] = df['text'].apply(clean_text)
 
-    # Clean text
-    df["cleaned"] = df["text"].apply(clean_text)
+    # Encode
+    le_p = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'priority' column in the dataset, which contains categorical values representing the priority levels of customer support tickets
+    le_c = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'category' column in the dataset, which contains categorical values representing the issue categories of customer support tickets
+    le_s = LabelEncoder()                                 # ------------> to create an instance of the LabelEncoder class for encoding the 'subject' column in the dataset, which contains categorical values representing the subjects of customer support tickets
 
-    # Label Encoding
-    le_priority = LabelEncoder()
-    le_category = LabelEncoder()
-    le_subject = LabelEncoder()
-    
-    df["priority_enc"] = le_priority.fit_transform(df["priority"])
-    df["category_enc"] = le_category.fit_transform(df["category"])
-    df["subject_enc"] = le_subject.fit_transform(df["subject"])
-    
-    return df, le_priority, le_category, le_subject
+    df['priority_enc'] = le_p.fit_transform(df['priority'])         # ------------> to encode the 'priority' column in the dataset using the fit_transform method of the LabelEncoder instance le_p, which converts the categorical values into numerical labels and stores the encoded values in a new column called 'priority_enc'
+    df['category_enc'] = le_c.fit_transform(df['category'])         # ------------> to encode the 'category' column in the dataset using the fit_transform method of the LabelEncoder instance le_c, which converts the categorical values into numerical labels and stores the encoded values in a new column called 'category_enc'
+    df['subject_enc'] = le_s.fit_transform(df['subject'])           # ------------> to encode the 'subject' column in the dataset using the fit_transform method of the LabelEncoder instance le_s, which converts the categorical values into numerical labels and stores the encoded values in a new column called 'subject_enc'
+
+    return df, le_p, le_c, le_s
 
 # -------------------------
 # TRAIN MODELS
 # -------------------------
 @st.cache_resource
-def train_models(df):
-    tfidf = TfidfVectorizer(max_features=1000)
-    X = tfidf.fit_transform(df["cleaned"])
+def train(df):          # ------------> to define a function called train that takes the preprocessed dataset as input, trains machine learning models for priority classification, category classification, subject classification, and resolution time prediction, and returns the trained models along with the accuracy and confusion matrix for the priority classification model
+    tfidf = TfidfVectorizer(max_features=5000, ngram_range=(1,2))       # ------------> to create an instance of the TfidfVectorizer class for converting the cleaned text data into numerical features using the TF-IDF method, with a maximum of 5000 features and considering both unigrams and bigrams
+    X = tfidf.fit_transform(df['cleaned'])
 
-    # Priority Model
-    X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
-        X, df["priority_enc"], test_size=0.3, random_state=42
-    )
-    priority_model = LogisticRegression(max_iter=2000)
-    priority_model.fit(X_train_p, y_train_p)
-    
-    priority_pred = priority_model.predict(X_test_p)
-    accuracy = accuracy_score(y_test_p, priority_pred)
-    cm = confusion_matrix(y_test_p, priority_pred)
+    X_train, X_test, y_train_p, y_test_p = train_test_split(X, df['priority_enc'], test_size=0.3, random_state=42)            # ------------> to split the dataset into training and testing sets for the priority classification task, using the train_test_split function from scikit-learn, with 30% of the data reserved for testing and a random state of 42 for reproducibility
 
-    # Category Model
-    category_model = LogisticRegression(max_iter=2000)
-    category_model.fit(X, df["category_enc"])
-
-    # Subject Model
-    subject_model = LogisticRegression(max_iter=2000)
-    subject_model.fit(X, df["subject_enc"])
-
-    # Resolution Time Model
-    time_model = LinearRegression()
-    time_model.fit(X, df["resolution_time"])
-
-    return tfidf, priority_model, category_model, subject_model, time_model, accuracy, cm
+    model_p = LogisticRegression(max_iter=2000).fit(X, df['priority_enc'])          # ------------> to create an instance of the LogisticRegression class for priority classification, fit the model to the entire dataset (X and df['priority_enc']), and store the trained model in the variable model_p
+    model_c = LogisticRegression(max_iter=2000).fit(X, df['category_enc'])          # ------------> to create an instance of the LogisticRegression class for category classification, fit the model to the entire dataset (X and df['category_enc']), and store the trained model in the variable model_c
+    model_s = LogisticRegression(max_iter=2000).fit(X, df['subject_enc'])           # ------------> to create an instance of the LogisticRegression class for subject classification, fit the model to the entire dataset (X and df['subject_enc']), and store the trained model in the variable model_s
+    model_t = LinearRegression().fit(X, df['resolution_time'])                      # ------------> to create an instance of the LinearRegression class for resolution time prediction, fit the model to the entire dataset (X and df['resolution_time']), and store the trained model in the variable model_t
+    accuracy = accuracy_score(df['priority_enc'], model_p.predict(X))               # ------------> to calculate the accuracy of the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the accuracy score in the variable accuracy
+    cm = confusion_matrix(df['priority_enc'], model_p.predict(X))                   # ------------> to compute the confusion matrix for the priority classification model by comparing the true labels (df['priority_enc']) with the predicted labels obtained from the model (model_p.predict(X)), and store the confusion matrix in the variable cm
+    return tfidf, model_p, model_c, model_s, model_t, accuracy, cm
 
 # -------------------------
-# EXECUTION
+# UI
 # -------------------------
-df, le_priority, le_category, le_subject = load_data()
-tfidf, priority_model, category_model, subject_model, time_model, accuracy, cm = train_models(df)
+st.set_page_config(page_title="Ticket AI", layout="centered")
+st.title("🎯 Smart Ticket Generator")
 
-# -------------------------
-# STREAMLIT UI
-# -------------------------
-st.set_page_config(page_title="Smart Ticket Classifier", layout="centered")
-st.title("🎯 Smart Ticket Classifier")
-st.write("Predict ticket priority, category, subject, and estimated resolution time.")
+df, le_p, le_c, le_s = load_data()
+tfidf, mp, mc, ms, mt, accuracy, cm = train(df)
 
-user_text = st.text_area("✍️ Enter Customer Complaint")
+text = st.text_area("✍️ Enter Customer Complaint")
 
-if st.button("Predict"):
-    if not user_text.strip():
-        st.warning("Please enter complaint text.")
-    else:
-        cleaned = clean_text(user_text)
-        x = tfidf.transform([cleaned])
+if text.strip():
 
-        # Predictions
-        p_idx = priority_model.predict(x)[0]
-        c_idx = category_model.predict(x)[0]
-        s_idx = subject_model.predict(x)[0]
-        
-        priority = le_priority.inverse_transform([p_idx])[0]
-        category = le_category.inverse_transform([c_idx])[0]
-        subject = le_subject.inverse_transform([s_idx])[0]
-        resolution_time = time_model.predict(x)[0]
+    x = tfidf.transform([clean_text(text)])
 
-        # Results
-        st.subheader("📊 Prediction Results")
-        st.error(f"🚨 Priority: {priority}")
-        st.info(f"🏷️ Category: {category}")
-        st.success(f"📝 Subject: {subject}")
-        st.write(f"⏱️ Estimated Resolution Time: {round(max(0, resolution_time), 2)} hours")
+    # Predictions
+    p = le_p.inverse_transform([mp.predict(x)[0]])[0]               #---> to predict the priority level of the customer complaint using the trained priority classification model (mp) and the TF-IDF features (x), and then inverse transform the predicted label back to its original categorical value using the LabelEncoder instance le_p, storing the result in the variable p
+    c = le_c.inverse_transform([mc.predict(x)[0]])[0]               #---> to predict the issue category of the customer complaint using the trained category classification model (mc) and the TF-IDF features (x), and then inverse transform the predicted label back to its original categorical value using the LabelEncoder instance le_c, storing the result in the variable c
+    s = le_s.inverse_transform([ms.predict(x)[0]])[0]               #---> to predict the ticket subject of the customer complaint using the trained subject classification model (ms) and the TF-IDF features (x), and then inverse transform the predicted label back to its original categorical value using the LabelEncoder instance le_s, storing the result in the variable s
+    t = mt.predict(x)[0]
 
-        st.subheader("📈 Model Accuracy")
-        st.write(f"Priority Model Accuracy: {round(accuracy, 2)}")
+    # 🔥 UI OUTPUT
+    st.subheader("Model Performance")                      
+    st.write("Accuracy:", round(accuracy, 2))               #---> to display the accuracy of the model in the Streamlit app
+    st.write("Confusion Matrix")                           
+    st.write(cm)                                            #---> to display the confusion matrix in the Streamlit app
+    st.markdown("## 🚨 Priority Level")
+    st.error(p.upper())                                     #---> to display the predicted priority level of the customer complaint in the Streamlit app, formatted as an error message and converted to uppercase for emphasis
 
-        st.subheader("📌 Confusion Matrix")
-        st.write(cm)
+    st.markdown("### 🏷️ Issue Category")
+    st.info(c)                                              #---> to display the predicted issue category of the customer complaint in the Streamlit app, formatted as an informational message
+
+    st.markdown("### 📝 Ticket Subject")
+    st.success(s)                                           #---> to display the predicted ticket subject of the customer complaint in the Streamlit app, formatted as a success message
+
+    st.markdown("### ⏱️ Estimated Resolution Time")
+    st.write(f"**{round(t,2)} hours**")                     #---> to display the predicted estimated resolution time for the customer complaint in the Streamlit app, formatted in bold and rounded to 2 decimal places, followed by the unit "hours"
+
+else:
+    st.info("Enter complaint to generate ticket")
