@@ -129,7 +129,7 @@ def load_data():
     top_subjects = (
         df["subject"]
         .value_counts()
-        .nlargest(15)
+        .nlargest(30)
         .index
     )
 
