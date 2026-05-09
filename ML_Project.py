@@ -82,7 +82,7 @@ def train(df):
         random_state=42
     )
 
-    model_p = LogisticRegression(max_iter=2000,class_weight='balanced')
+    model_p = LogisticRegression(max_iter=2000)
     model_c = LogisticRegression(max_iter=2000)
     model_t = LinearRegression()
 
