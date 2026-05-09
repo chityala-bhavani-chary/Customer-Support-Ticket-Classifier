@@ -82,7 +82,7 @@ def train(df):          # ------------> to define a function called train that v
 
     X_train, X_test, y_train_p, y_test_p = train_test_split(X, df['priority_enc'], test_size=0.2, random_state=42)            # ------------> to split the data for validation, using 20% for testing
 
-    # Fixed: Removed multi_class argument as it is not supported in scikit-learn 1.8.0 
+    # Fixed: Removed multi_class argument to resolve TypeError in scikit-learn 1.8.0
     model_p = LogisticRegression(solver='lbfgs', class_weight='balanced', max_iter=1000).fit(X_train, y_train_p) 
     model_c = LogisticRegression(class_weight='balanced', max_iter=1000).fit(X, df['category_enc'])
     model_s = LogisticRegression(class_weight='balanced', max_iter=1000).fit(X, df['subject_enc'])
@@ -97,19 +97,22 @@ def train(df):          # ------------> to define a function called train that v
     return tfidf, model_p, model_c, model_s, model_t, accuracy, cm, mae, r2
 
 # -------------------------
-# UI
+# EXECUTION & CACHING
 # -------------------------
-st.set_page_config(page_title="Ticket AI", layout="centered")
-st.title("🎯 Smart Ticket Generator")
-
-# Wrapped loading and training into a single execution flow for efficiency
 @st.cache_resource
-def get_model_and_data():
+def get_everything():                                   # ------------> to wrap data loading and training in a single cached function to fix rerunning delays and potential NameErrors
     df, le_p, le_c, le_s = load_data()
     tfidf, mp, mc, ms, mt, accuracy, cm, mae, r2 = train(df)
     return df, le_p, le_c, le_s, tfidf, mp, mc, ms, mt, accuracy, cm, mae, r2
 
-df, le_p, le_c, le_s, tfidf, mp, mc, ms, mt, accuracy, cm, mae, r2 = get_model_and_data()
+# --- Unpack all resources ---
+df, le_p, le_c, le_s, tfidf, mp, mc, ms, mt, accuracy, cm, mae, r2 = get_everything()
+
+# -------------------------
+# UI
+# -------------------------
+st.set_page_config(page_title="Ticket AI", layout="centered")
+st.title("🎯 Smart Ticket Generator")
 
 text = st.text_area("✍️ Enter Customer Complaint")
 
