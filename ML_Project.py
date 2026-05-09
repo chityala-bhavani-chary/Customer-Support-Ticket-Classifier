@@ -55,9 +55,7 @@ def load_data():
 
     df = df[['text','subject','category','priority','resolution_time']].dropna()
 
-    top_subjects = df['subject'].value_counts().nlargest(20).index
 
-    df = df[df['subject'].isin(top_subjects)]
 
     df['cleaned'] = df['text'].apply(clean_text)
 
