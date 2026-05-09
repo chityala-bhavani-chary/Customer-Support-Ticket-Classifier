@@ -69,7 +69,7 @@ def load_data():
 def train(df):
 
     tfidf = TfidfVectorizer(
-    max_features=10000,
+    max_features=5000,
     ngram_range=(1,2),
     stop_words='english')
     
@@ -82,8 +82,8 @@ def train(df):
         random_state=42
     )
 
-    model_p = LogisticRegression(max_iter=3000,class_weight='balanced')
-    model_c = LogisticRegression(max_iter=3000)
+    model_p = LogisticRegression(max_iter=2000,class_weight='balanced')
+    model_c = LogisticRegression(max_iter=2000)
     model_t = LinearRegression()
 
     model_p.fit(X_train_p, y_train_p)
