@@ -83,9 +83,9 @@ def train(df):          # ------------> to define a function called train that v
     X_train, X_test, y_train_p, y_test_p = train_test_split(X, df['priority_enc'], test_size=0.2, random_state=42)            # ------------> to split the data for validation, using 20% for testing
 
     # Adding class_weight='balanced' to LogisticRegression to handle data bias and improve accuracy score
-    model_p = LogisticRegression(multi_class='multinomial', solver='lbfgs', class_weight='balanced', max_iter=1000).fit(X_train, y_train_p) 
-    model_c = LogisticRegression(multi_class='multinomial', class_weight='balanced', max_iter=1000).fit(X, df['category_enc'])
-    model_s = LogisticRegression(multi_class='multinomial', class_weight='balanced', max_iter=1000).fit(X, df['subject_enc'])
+    model_p = LogisticRegression(solver='lbfgs', class_weight='balanced', max_iter=1000).fit(X_train, y_train_p)
+    model_c = LogisticRegression(class_weight='balanced', max_iter=1000).fit(X, df['category_enc'])
+    model_s = LogisticRegression(class_weight='balanced', max_iter=1000).fit(X, df['subject_enc'])
     model_t = LinearRegression().fit(X, df['resolution_time'])                      
 
     # Evaluation Metrics
