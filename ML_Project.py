@@ -159,11 +159,6 @@ st.title("🎯 Smart Ticket Generator")
 df, le_p, le_c = load_data()
 tfidf, X, mp, mc, mt, accuracy, cm = train(df)
 
-# Show model performance in sidebar so it doesn't clutter the main UI
-st.sidebar.markdown("## 📊 Model Performance")
-st.sidebar.write("Accuracy:", round(accuracy, 2))       #---> to display the accuracy of the priority model in the sidebar
-st.sidebar.write("Confusion Matrix")
-st.sidebar.write(cm)                                    #---> to display the confusion matrix in the sidebar
 
 text = st.text_area("✍️ Enter Customer Complaint")
 
@@ -176,6 +171,9 @@ if text.strip():
     c = le_c.inverse_transform([mc.predict(x)[0]])[0]               #---> to predict the issue category and inverse transform back to original label
     s = predict_subject(text, tfidf, X, df)                         #---> to find the most similar ticket subject using cosine similarity
     t = max(1, round(float(mt.predict(x)[0]), 2))                   #---> to predict resolution time, minimum capped at 1 hour
+        # Show model performance in sidebar so it doesn't clutter the main UI
+    st.subheader.markdown("## 📊 Model Performance")
+    st.subheader.write("Accuracy:", round(accuracy, 2))       #---> to display the accuracy of the priority model in the sidebar
 
     if t <= 2:
         message = "Quick Resolution Expected"
