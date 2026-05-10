@@ -219,9 +219,6 @@ if text.strip():
         round(accuracy, 2)
     )
 
-    st.write("Confusion Matrix")
-
-    st.write(cm)
 
     st.markdown("## 🚨 Priority Level")
 
@@ -235,10 +232,12 @@ if text.strip():
 
     st.success(s)
 
-    st.markdown("### ⏱️ Estimated Resolution Time")
+    avg_time = round(df['resolution_time'].mean(), 2)
 
+    st.markdown("### ⏱️ Estimated Resolution Time")
+    
     st.write(
-        f"**{round(float(t), 2)} hours**"
+        f"**{round(float(t), 2)} hours**  |  Avg Resolution Time: **{avg_time} hours**"
     )
 
 else:
