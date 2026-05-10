@@ -55,13 +55,10 @@ def clean_text(text):
 @st.cache_data
 def load_data():
 
-    df = pd.read_csv(
-        "customer_support_tickets_200k.zip",
-        compression={
-            'method': 'zip',
-            'archive_name': 'customer_support_tickets_200k.csv'
-        }
-    )
+    import zipfile
+    with zipfile.ZipFile("customer_support_tickets_200k.zip") as z:
+        with z.open("customer_support_tickets_200k.csv") as f:
+            df = pd.read_csv(f)
 
     df.columns = df.columns.str.strip().str.lower()
 
@@ -76,6 +73,17 @@ def load_data():
     df = df[
         ['text', 'subject', 'category', 'priority', 'resolution_time']
     ].dropna()
+
+    # FIX 1: Normalize priority case (Low/low/LOW → Low)
+    df['priority'] = df['priority'].str.strip().str.capitalize()
+
+    # FIX 2: Keep only 4 valid priority levels (drops rare 'Critical' etc.)
+    df = df[df['priority'].isin(['Low', 'Medium', 'High', 'Urgent'])]
+
+    # FIX 3: Drop categories with fewer than 100 entries (removes noise)
+    category_counts = df['category'].value_counts()
+    valid_categories = category_counts[category_counts >= 100].index
+    df = df[df['category'].isin(valid_categories)]
 
     df['cleaned'] = (df['subject'] + ' ' + df['text']).apply(clean_text)
 
@@ -92,7 +100,6 @@ def load_data():
 @st.cache_resource
 def train(df):
 
-    # FIX 2: Reduced max_features from 30000 → 15000 (cuts matrix size in half, minimal accuracy loss)
     tfidf = TfidfVectorizer(
         max_features=15000,
         ngram_range=(1, 2),
@@ -110,22 +117,20 @@ def train(df):
         random_state=42
     )
 
-    # FIX 3: Reduced max_iter from 3000 → 500 (200k rows converge fast, 3000 was wasteful)
     model_p = LogisticRegression(
         max_iter=500,
         class_weight='balanced',
         C=5,
-        solver='saga',        # FIX 3b: saga is much faster than lbfgs on large datasets
-        n_jobs=-1             # FIX 3c: use all CPU cores
+        solver='saga',
+        n_jobs=-1
     )
 
     model_c = LogisticRegression(
         max_iter=500,
-        solver='saga',        # FIX 3b: saga is much faster on large datasets
-        n_jobs=-1             # FIX 3c: use all CPU cores
+        solver='saga',
+        n_jobs=-1
     )
 
-    # FIX 4: Ridge instead of LinearRegression (faster solver, handles large sparse matrices better)
     model_t = Ridge(alpha=1.0)
 
     model_p.fit(X_train_p, y_train_p)
@@ -144,12 +149,11 @@ def train(df):
 
 # -------------------- SUBJECT PREDICTION --------------------
 
-# FIX 1: Sample 5000 rows for cosine similarity instead of all 200k (10x faster, same quality)
 def predict_subject(user_text, tfidf, X, df):
 
     sample_idx = df.sample(n=5000, random_state=42).index
-    X_sample = X[sample_idx]
-    df_sample = df.loc[sample_idx].reset_index(drop=True)
+    X_sample   = X[sample_idx]
+    df_sample  = df.loc[sample_idx].reset_index(drop=True)
 
     user_vector = tfidf.transform(
         [clean_text(user_text)]
