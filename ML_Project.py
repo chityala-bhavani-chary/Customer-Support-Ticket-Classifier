@@ -154,7 +154,7 @@ def predict_subject(user_text, tfidf, X, df):   # ------------> to find the most
 # UI
 # -------------------------
 st.set_page_config(page_title="Ticket AI", layout="centered")
-st.title("🎯 Smart Ticket Generator")
+st.title("🎯 Customer Support Ticket Classification System")
 
 df, le_p, le_c = load_data()
 tfidf, X, mp, mc, mt, accuracy, cm = train(df)
@@ -172,7 +172,7 @@ if text.strip():
     s = predict_subject(text, tfidf, X, df)                         #---> to find the most similar ticket subject using cosine similarity
     t = max(1, round(float(mt.predict(x)[0]), 2))                   #---> to predict resolution time, minimum capped at 1 hour
         # Show model performance in sidebar so it doesn't clutter the main UI
-    st.subheader.markdown("## 📊 Model Performance")
+    st.subheader("## 📊 Model Performance")
     st.write("Accuracy:", round(accuracy, 2))       #---> to display the accuracy of the priority model in the sidebar
 
     if t <= 2:
