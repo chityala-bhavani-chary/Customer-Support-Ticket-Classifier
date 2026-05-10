@@ -114,12 +114,8 @@ def train(df):
 
     X = tfidf.fit_transform(df['cleaned'])
 
-    # Split for CATEGORY model (this is the meaningful accuracy)
-    X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(
-        X,
-        df['category_enc'],
-        test_size=0.1,
-        random_state=42
+    X_train_p, X_test_p, y_train_p, y_test_p = train_test_split(
+        X, df['priority_enc'], test_size=0.1, random_state=42
     )
 
     # Priority model — trained on full X
@@ -140,19 +136,10 @@ def train(df):
     )
 
     model_t = LinearRegression()
-
-    model_p.fit(X, df['priority_enc'])
-
-    # Train category on train split, evaluate on test split
-    model_c.fit(X_train_c, y_train_c)
-
-    model_t.fit(X, df['resolution_time'])
-
-    pred_c   = model_c.predict(X_test_c)
-
-    # Report category accuracy (0.85+) as the primary model metric
-    accuracy = accuracy_score(y_test_c, pred_c)
-    cm       = confusion_matrix(y_test_c, pred_c)
+    model_p.fit(X_train_p, y_train_p)   # priority was evaluated
+    pred_p   = model_p.predict(X_test_p)
+    accuracy = accuracy_score(y_test_p, pred_p)
+    cm       = confusion_matrix(y_test_p, pred_p)
 
     return tfidf, X, model_p, model_c, model_t, accuracy, cm
 
@@ -226,10 +213,8 @@ if text.strip():
 
     st.subheader("📊 Model Performance")
 
-    st.write(
-        "Category Prediction Accuracy:",
-        round(accuracy, 2)
-    )
+    st.write("Accuracy:", round(accuracy, 2))
+
 
     st.markdown("## 🚨 Priority Level")
 
