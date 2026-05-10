@@ -173,7 +173,7 @@ if text.strip():
     t = max(1, round(float(mt.predict(x)[0]), 2))                   #---> to predict resolution time, minimum capped at 1 hour
         # Show model performance in sidebar so it doesn't clutter the main UI
     st.subheader.markdown("## 📊 Model Performance")
-    st.subheader.write("Accuracy:", round(accuracy, 2))       #---> to display the accuracy of the priority model in the sidebar
+    st.write("Accuracy:", round(accuracy, 2))       #---> to display the accuracy of the priority model in the sidebar
 
     if t <= 2:
         message = "Quick Resolution Expected"
