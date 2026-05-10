@@ -208,7 +208,9 @@ if text.strip():
 
     s = predict_subject(text, tfidf, X, df)
 
-    t = mt.predict(x)[0]
+    t = max(
+    1,
+    round(float(mt.predict(x)[0]), 2))
 
     # -------------------- OUTPUT --------------------
 
@@ -232,27 +234,22 @@ if text.strip():
 
     st.success(s)
 
-    avg_time = round(df['resolution_time'].mean(), 2)
+    if t <= 2:
+
+    message = "Quick Resolution Expected"
     
-    difference = round(float(t) - avg_time, 2)
+    elif t <= 24:
     
-    st.markdown("### ⏱️ Estimated Resolution Time")
-    
-    st.write(
-        f"Estimated: **{round(float(t),2)} hours**"
-    )
-    
-    if difference > 0:
-    
-        st.warning(
-            f"{difference} hours ABOVE average resolution time"
-        )
+        message = "Moderate Resolution Time"
     
     else:
     
-        st.success(
-            f"{abs(difference)} hours BELOW average resolution time"
-        )
+        message = "May Take Longer Than Usual"
+    st.markdown("### ⏱️ Estimated Resolution Time")
+    
+    st.success(f"{t} hours")
+    
+    st.info(message)
 
 else:
 
