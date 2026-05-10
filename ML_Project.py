@@ -238,13 +238,13 @@ if text.strip():
 
     message = "Quick Resolution Expected"
     
-    elif t <= 24:
-    
-        message = "Moderate Resolution Time"
-    
-    else:
-    
-        message = "May Take Longer Than Usual"
+elif t <= 24:
+
+    message = "Moderate Resolution Time"
+
+else:
+
+    message = "May Take Longer Than Usual"
     st.markdown("### ⏱️ Estimated Resolution Time")
     
     st.success(f"{t} hours")
