@@ -237,7 +237,7 @@ if text.strip():
     st.markdown("### ⏱️ Estimated Resolution Time")
     
     st.write(
-        f"**{round(float(t), 2)} hours**  |  Avg Resolution Time: **{avg_time} hours**"
+        f"**{round(float(t-avg_time), 2)} hours**"
     )
 
 else:
