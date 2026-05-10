@@ -191,7 +191,7 @@ if text.strip():
 
     st.markdown("### 📝 Product")
     st.success(s)                                            #---> to display the most similar product/subject as a success message
-    st.markdown("#### Note: Product category may not be perfect some times ####")
+    st.markdown("####### Note: Product category may not be perfect some times #######")
 
     st.markdown("### ⏱️ Estimated Resolution Time")
     st.success(f"**{t} hours**")                            #---> to display the predicted resolution time in bold
