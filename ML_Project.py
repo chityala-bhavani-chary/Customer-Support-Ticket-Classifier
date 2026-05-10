@@ -211,6 +211,17 @@ if text.strip():
     t = max(
     1,
     round(float(mt.predict(x)[0]), 2))
+    if t <= 2:
+
+    message = "Quick Resolution Expected"
+
+    elif t <= 24:
+    
+        message = "Moderate Resolution Time"
+    
+    else:
+    
+        message = "May Take Longer Than Usual"
 
     # -------------------- OUTPUT --------------------
 
@@ -233,17 +244,8 @@ if text.strip():
     st.markdown("### 📝 Product")
 
     st.success(s)
-    if t <= 2:
-
-    message = "Quick Resolution Expected"
     
-    elif t <= 24:
-    
-        message = "Moderate Resolution Time"
-    
-    else:
-    
-        message = "May Take Longer Than Usual"
+    st.markdown("### ⏱️ Estimated Resolution Time")
     
     st.success(f"{t} hours")
     
