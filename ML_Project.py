@@ -234,13 +234,25 @@ if text.strip():
 
     avg_time = round(df['resolution_time'].mean(), 2)
     
-    final_time = round(float(t) - avg_time, 2)
+    difference = round(float(t) - avg_time, 2)
     
     st.markdown("### ⏱️ Estimated Resolution Time")
     
     st.write(
-        f"**{final_time} hours**"
+        f"Estimated: **{round(float(t),2)} hours**"
     )
+    
+    if difference > 0:
+    
+        st.warning(
+            f"{difference} hours ABOVE average resolution time"
+        )
+    
+    else:
+    
+        st.success(
+            f"{abs(difference)} hours BELOW average resolution time"
+        )
 
 else:
 
