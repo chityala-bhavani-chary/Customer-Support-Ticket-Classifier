@@ -233,19 +233,17 @@ if text.strip():
     st.markdown("### 📝 Product")
 
     st.success(s)
-
     if t <= 2:
 
     message = "Quick Resolution Expected"
     
-elif t <= 24:
-
-    message = "Moderate Resolution Time"
-
-else:
-
-    message = "May Take Longer Than Usual"
-    st.markdown("### ⏱️ Estimated Resolution Time")
+    elif t <= 24:
+    
+        message = "Moderate Resolution Time"
+    
+    else:
+    
+        message = "May Take Longer Than Usual"
     
     st.success(f"{t} hours")
     
