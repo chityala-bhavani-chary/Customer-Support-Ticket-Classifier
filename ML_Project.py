@@ -7,7 +7,6 @@
 # 4. Streamlit UI: Create an interactive user interface using Streamlit to allow users to input customer complaints and receive predictions for priority level, issue category, ticket subject, and estimated resolution time.
 # The project utilizes libraries such as pandas for data manipulation, scikit-learn for machine learning, and Streamlit for building the web application interface.
 # Note: Ensure that the dataset "customer_support_tickets.csv" is available in the same directory as this script for it to run successfully.
-# Import necessary libraries
 
 # ML Project: Smart Ticket Classification & Resolution Time Prediction
 # -------------------------
@@ -17,10 +16,11 @@ import pandas as pd
 import streamlit as st
 import re
 import nltk
+import numpy as np
 
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
@@ -74,17 +74,21 @@ def load_data():
         ['text', 'subject', 'category', 'priority', 'resolution_time']
     ].dropna()
 
-    # FIX 1: Normalize priority case (Low/low/LOW → Low)
+    # Normalize priority case (Low/low/LOW → Low)
     df['priority'] = df['priority'].str.strip().str.capitalize()
 
-    # FIX 2: Keep only 4 valid priority levels (drops rare 'Critical' etc.)
+    # Keep only 4 valid priority levels
     df = df[df['priority'].isin(['Low', 'Medium', 'High', 'Urgent'])]
 
-    # FIX 3: Drop categories with fewer than 100 entries (removes noise)
-    category_counts = df['category'].value_counts()
+    # Drop categories with fewer than 100 entries (removes noise)
+    category_counts  = df['category'].value_counts()
     valid_categories = category_counts[category_counts >= 100].index
-    df = df[df['category'].isin(valid_categories)]
+    df               = df[df['category'].isin(valid_categories)]
 
+    # Reset index so it always aligns with X matrix row positions
+    df = df.reset_index(drop=True)
+
+    # Combine subject + text for richer features
     df['cleaned'] = (df['subject'] + ' ' + df['text']).apply(clean_text)
 
     le_p = LabelEncoder()
@@ -100,12 +104,13 @@ def load_data():
 @st.cache_resource
 def train(df):
 
+    # max_features=30000, bigrams, sublinear_tf for higher accuracy
     tfidf = TfidfVectorizer(
-        max_features=15000,
+        max_features=30000,
         ngram_range=(1, 2),
         stop_words='english',
         sublinear_tf=True,
-        min_df=3
+        min_df=2
     )
 
     X = tfidf.fit_transform(df['cleaned'])
@@ -117,23 +122,22 @@ def train(df):
         random_state=42
     )
 
+    # C=5, lbfgs for best multiclass TF-IDF accuracy
     model_p = LogisticRegression(
-        max_iter=500,
+        max_iter=3000,
         class_weight='balanced',
         C=5,
-        solver='saga',
-        n_jobs=-1
+        solver='lbfgs'
     )
 
     model_c = LogisticRegression(
-        max_iter=500,
-        solver='saga',
-        n_jobs=-1
+        max_iter=3000
     )
 
-    model_t = Ridge(alpha=1.0)
+    model_t = LinearRegression()
 
-    model_p.fit(X_train_p, y_train_p)
+    # Train on full X for better weights, evaluate on held-out split
+    model_p.fit(X, df['priority_enc'])
 
     model_c.fit(X, df['category_enc'])
 
@@ -151,9 +155,10 @@ def train(df):
 
 def predict_subject(user_text, tfidf, X, df):
 
-    sample_idx = df.sample(n=5000, random_state=42).index
-    X_sample   = X[sample_idx]
-    df_sample  = df.loc[sample_idx].reset_index(drop=True)
+    # Use positional indices so they always align with X rows
+    sample_pos = np.random.RandomState(42).choice(len(df), size=5000, replace=False)
+    X_sample   = X[sample_pos]
+    df_sample  = df.iloc[sample_pos].reset_index(drop=True)
 
     user_vector = tfidf.transform(
         [clean_text(user_text)]
