@@ -190,11 +190,12 @@ if text.strip():
     st.info(c)                                              #---> to display the predicted issue category as an informational message
 
     st.markdown("### 📝 Product")
-    st.success(s)                                           #---> to display the most similar product/subject as a success message
+    st.success(s)                                            #---> to display the most similar product/subject as a success message
+    st.error("Product category may not be perfect some times")
 
     st.markdown("### ⏱️ Estimated Resolution Time")
     st.success(f"**{t} hours**")                            #---> to display the predicted resolution time in bold
     st.info(message)                                        #---> to display a human-readable resolution time message
 
 else:
-    st.info("Enter complaint to generate ticket")
+    st.info("Enter complaint to categorize the ticket")
