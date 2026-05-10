@@ -232,7 +232,7 @@ if text.strip():
 
     st.success(s)
 
-    avg_time = round(df['resolution_time'].mean(), 2)
+    avg_time = round(t.mean(), 2)
 
     st.markdown("### ⏱️ Estimated Resolution Time")
     
